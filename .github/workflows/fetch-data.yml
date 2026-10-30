@@ -1,8 +1,10 @@
 name: fetch-data
 
 # Пайплайн добычи РЕАЛЬНЫХ данных проекта «АКВАЧЕК».
-# Запускается вручную: данные из открытых источников (Sentinel-2 / ERA5 / Copernicus DEM)
-# скачиваются раннером GitHub и коммитятся в data/. Никаких синтетических значений.
+# Источники: Sentinel-2 L2A (Copernicus/ESA, публичные COG на AWS Open Data),
+# ERA5 (ECMWF) через Historical Weather API, Copernicus DEM GLO-30 (AWS Open Data).
+# Раннер скачивает данные и коммитит их в data/. Синтетических значений нет:
+# если источник недоступен, пайплайн завершается ошибкой.
 
 on:
   push:
@@ -17,7 +19,7 @@ on:
         required: false
         default: "2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025"
       steps:
-        description: "Какие шаги выполнить: all | era5 | sentinel | checks"
+        description: "Что выполнить: all | era5 | sentinel | checks"
         required: false
         default: "all"
 
@@ -36,7 +38,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
 
       - name: Зависимости пайплайна
         run: |
@@ -44,19 +45,34 @@ jobs:
           pip install -r pipeline/requirements.txt
 
       - name: Метеоряд ERA5
-        if: ${{ github.event.inputs.steps == 'all' || github.event.inputs.steps == 'era5' }}
+        if: ${{ (github.event.inputs.steps || 'all') == 'all' || github.event.inputs.steps == 'era5' }}
         working-directory: pipeline
-        run: python fetch_era5.py --years "${{ github.event.inputs.years }}"
+        run: python fetch_era5.py --years "${{ github.event.inputs.years || '2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025' }}"
 
       - name: Снимки Sentinel-2
-        if: ${{ github.event.inputs.steps == 'all' || github.event.inputs.steps == 'sentinel' }}
+        if: ${{ (github.event.inputs.steps || 'all') == 'all' || github.event.inputs.steps == 'sentinel' }}
         working-directory: pipeline
         run: python fetch_sentinel.py
 
       - name: Контуры и характеристики чеков
-        if: ${{ github.event.inputs.steps == 'all' || github.event.inputs.steps == 'checks' }}
+        if: ${{ (github.event.inputs.steps || 'all') == 'all' || github.event.inputs.steps == 'checks' }}
         working-directory: pipeline
         run: python build_checks.py
+
+      - name: Что получилось
+        run: |
+          echo "=== data ==="
+          find data -type f | sort | head -60
+          echo "=== размеры ==="
+          du -sh data/* 2>/dev/null || true
+          if [ -f data/checks.geojson ]; then
+            python - <<'PY'
+          import json
+          g = json.load(open("data/checks.geojson", encoding="utf-8"))
+          m = g.get("metadata", {})
+          print("чеков:", m.get("count"), "| площадь, га:", m.get("total_ha"), "| ср. отметка:", m.get("mean_elev_m"))
+          PY
+          fi
 
       - name: Фиксация результатов
         run: |
