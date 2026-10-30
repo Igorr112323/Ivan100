@@ -125,6 +125,8 @@ def main() -> None:
                 {
                     "slot": label,
                     "window": f"{start}..{end}",
+                    "start": start,
+                    "end": end,
                     "found": len(features),
                     "best": (
                         {
@@ -219,7 +221,7 @@ def main() -> None:
 
         # Цветное изображение собираем из сцены пика: перечитываем красный/зелёный/синий
         slot = next(c for c in catalogue if c["slot"] == best["label"])
-        features = stac_search(slot["window"][:10], slot["window"][11:])
+        features = stac_search(slot["start"], slot["end"])
         scene = next(f for f in features if f["id"] == best["id"])
         blue = read_window(scene["assets"]["blue"]["href"], width, height, dst_transform, Resampling.bilinear)
         red = read_window(scene["assets"]["red"]["href"], width, height, dst_transform, Resampling.bilinear)

@@ -104,7 +104,7 @@ def segment(water: np.ndarray) -> np.ndarray:
 def main() -> None:
     peak = json.loads((SENTINEL / "peak_scene.json").read_text(encoding="utf-8"))
     date = peak["date"]
-    log(f"сегментация по сцене {date} ({peak['scene']})")
+    log(f"сегментация по сцене {date} ({peak['id']})")
 
     width, height, transform = grid_shape()
     ndwi = load_raster(SENTINEL / f"ndwi_{date}.tif")
@@ -217,7 +217,7 @@ def main() -> None:
         "metadata": {
             "source": "Контуры получены автоматической сегментацией водного зеркала по снимку Sentinel-2 L2A",
             "scene_date": date,
-            "scene_id": peak["scene"],
+            "scene_id": peak["id"],
             "method": "NDWI > 0 -> морфологическая очистка -> водораздел по карте расстояний -> векторизация",
             "dem": "Copernicus DEM GLO-30 (публичный набор AWS Open Data)" if dem is not None else "недоступен",
             "count": len(features_out),
