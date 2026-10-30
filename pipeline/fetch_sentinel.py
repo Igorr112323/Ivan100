@@ -50,7 +50,7 @@ SCENE_SLOTS = [
     ("2025-08-06", "2025-08-31", "август: цветение, налив зерна"),
     ("2025-09-01", "2025-09-30", "сентябрь: созревание, сброс воды"),
 ]
-MAX_TILES = 2  # полигон перекрывают два тайла MGRS; больше не требуется
+MAX_TILES = 3  # полигон перекрывают два тайла MGRS; третий — на случай съёмки вне зоны
 
 
 def stac_search(start: str, end: str, limit: int = 60) -> list[dict]:
@@ -85,7 +85,8 @@ def pick_scenes(features: list[dict]) -> list[dict]:
         nodata = p.get("s2:nodata_pixel_percentage")
         if cloud is None or nodata is None:
             continue
-        if cloud > 0.35 or nodata > 40.0:
+        # тайл может перекрывать полигон частично — такая сцена всё равно нужна для сшивки
+        if cloud > 0.5 or nodata > 70.0:
             continue
         t = tile_of(f)
         if t not in by_tile or (cloud, nodata) < (cloud_of(by_tile[t]),
