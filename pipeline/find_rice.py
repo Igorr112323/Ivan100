@@ -60,15 +60,18 @@ COARSE_M = 60.0
 AOI_HALF_LON = 0.0750  # ±5.87 км
 AOI_HALF_LAT = 0.0520  # ±5.75 км  => окно ~11.7 x 11.5 км
 
-# Лето — окно затопления. Осень — контроль сброса воды.
-SUMMER_START, SUMMER_END = "2025-06-10", "2025-08-12"
+# Окно затопления — когда вода на чеке ещё видна спутнику: с конца мая (залив чеков)
+# до смыкания полога в первой половине июля. Проверено: в конце июля NDWI > 0 уже
+# только у 0,2 % района, а LSWI < NDVI — сомкнутый рис прячет воду. Поэтому искать
+# затопление в августе бессмысленно, сколько ни требуй «воду под пологом».
+FLOOD_START, FLOOD_END = "2025-05-01", "2025-07-10"
 AUTUMN_START, AUTUMN_END = "2025-09-15", "2025-10-20"
-MAX_SUMMER_DATES = 10
+MAX_FLOOD_DATES = 12
 MAX_AUTUMN_DATES = 3
 CLOUD_MAX = 0.40
 NODATA_MAX = 60.0
-FLOOD_GREEN_MIN = 2   # минимум летних дат «под водой и зелёный»
-NDVI_GREEN_MIN = 0.25
+FLOOD_GREEN_MIN = 2   # минимум дат окна затопления со стоячей водой
+NDVI_GREEN_MIN = 0.20  # культура уже видна: отсекает мокрую голую почву
 NDVI_PEAK_MIN = 0.55
 MAX_TILES = 3
 
@@ -206,11 +209,11 @@ def main() -> None:
     log(f"окно массива ~{2 * AOI_HALF_LON * 111320 * math.cos(math.radians(lat_c)) / 1000:.1f} x "
         f"{2 * AOI_HALF_LAT * 110.574:.1f} км")
 
-    summer = group_by_date(stac_search(SUMMER_START, SUMMER_END), MAX_SUMMER_DATES)
+    flood_dates = group_by_date(stac_search(FLOOD_START, FLOOD_END), MAX_FLOOD_DATES)
     autumn = group_by_date(stac_search(AUTUMN_START, AUTUMN_END), MAX_AUTUMN_DATES)
-    log(f"летних дат {len(summer)} ({SUMMER_START}..{SUMMER_END}), осенних {len(autumn)}")
-    if len(summer) < 3:
-        raise SystemExit("летних сцен мало — признак риса по двум датам не проверить")
+    log(f"дат окна затопления {len(flood_dates)} ({FLOOD_START}..{FLOOD_END}), осенних {len(autumn)}")
+    if len(flood_dates) < 3:
+        raise SystemExit("сцен окна затопления мало — рис по двум датам не отличить от дождя")
 
     flood_green = np.zeros((height, width), dtype="int16")
     ndvi_max = np.full((height, width), -1.0, dtype="float32")
@@ -218,7 +221,7 @@ def main() -> None:
     used: list[dict] = []
 
     with Env(**GDAL_ENV):
-        for date, items in summer:
+        for date, items in flood_dates:
             bands = {b: read_merged(items, b, SEARCH_BBOX, width, height, transform,
                                     Resampling.nearest if b == "scl" else Resampling.bilinear)
                      for b in ("red", "green", "nir", "swir16", "scl")}
@@ -233,8 +236,9 @@ def main() -> None:
                          "cloud_pct": round(min(cloud_of(i) for i in items) * 100, 2),
                          "flood_green_pct": round(float(np.nanmean(fg)) * 100, 2),
                          "ndvi_mean": round(float(np.nanmean(ndvi)), 3)})
-            log(f"  {date}: затоплено и зелено у {np.nanmean(fg) * 100:5.2f} % пикселей | "
-                f"NDWI > 0 у {np.nanmean(a['ndwi'] > 0) * 100:5.2f} % | NDVI средний {np.nanmean(ndvi):.3f}")
+            log(f"  {date}: затоплено и зелено у {np.nanmean(fg) * 100:5.2f} % | NDWI > 0 у "
+                f"{(a['ndwi'] > 0)[ndf].mean() * 100:5.2f} % | LSWI >= NDVI у "
+                f"{(a['lswi'] >= ndvi)[ndf].mean() * 100:5.2f} % | NDVI средний {np.nanmean(ndvi):.3f}")
 
         dry = None
         for date, items in autumn:
@@ -252,7 +256,7 @@ def main() -> None:
     px_ha = (COARSE_M * COARSE_M) / 10_000.0
     log("")
     log("=== признак риса по району ===")
-    log(f"  затоплено и зелено минимум на {FLOOD_GREEN_MIN} летних датах: "
+    log(f"  стоячая вода минимум на {FLOOD_GREEN_MIN} датах окна затопления: "
         f"{np.nansum(flood_green >= FLOOD_GREEN_MIN) * px_ha:.0f} га "
         f"({np.nanmean(flood_green >= FLOOD_GREEN_MIN) * 100:.2f} % района)")
     log(f"  плюс NDVI > {NDVI_PEAK_MIN} на пике: {np.nansum((ndvi_max > NDVI_PEAK_MIN)) * px_ha:.0f} га")
@@ -284,7 +288,7 @@ def main() -> None:
             continue
         clon, clat = transform * (cx, cy)
         bbox = [clon - AOI_HALF_LON, clat - AOI_HALF_LAT, clon + AOI_HALF_LON, clat + AOI_HALF_LAT]
-        tiles = sorted({tile_of(it) for _, grp in summer for it in grp if _intersects(it, bbox)})
+        tiles = sorted({tile_of(it) for _, grp in flood_dates for it in grp if _intersects(it, bbox)})
         shown += 1
         if shown <= 10:
             log(f"  {clat:.4f} с.ш. {clon:.4f} в.д. | рис {score[cy, cx]:7.0f} га | "
@@ -305,14 +309,14 @@ def main() -> None:
         f"тайлы {best['tiles']} | {abs(dist_km):.1f} км {'севернее' if dist_km > 0 else 'южнее'} "
         f"ст. Полтавской")
 
-    summer_dates = [u["date"] for u in used]
     aoi = {
         "name": "Рисовый массив, Красноармейский район, Краснодарский край",
         "lat": clat, "lon": clon, "bbox": bbox, "utm_epsg": 32637,
         "district": "Красноармейский район, Краснодарский край",
         "near": "ст. Полтавская",
-        "picked_by": "pipeline/find_rice.py: максимум площади риса по признаку «вода под пологом "
-                     "летом минимум на двух датах + NDVI > 0.55 на пике + сухо осенью»",
+        "picked_by": "pipeline/find_rice.py: максимум площади риса по признаку «стоячая вода "
+                     "минимум на двух датах окна затопления (май–начало июля), полог NDVI > 0.55 "
+                     "на пике лета, сухо осенью»",
         "coarse_rice_ha": best["rice_ha"],
         "coarse_coverage": best["coverage"],
         "tiles": best["tiles"],
@@ -321,10 +325,10 @@ def main() -> None:
             "flood_green_min": FLOOD_GREEN_MIN,
             "ndvi_green_min": NDVI_GREEN_MIN,
             "ndvi_peak_min": NDVI_PEAK_MIN,
-            "summer": [SUMMER_START, SUMMER_END],
+            "flood_window": [FLOOD_START, FLOOD_END],
             "autumn": [AUTUMN_START, AUTUMN_END],
         },
-        "summer_dates": summer_dates,
+        "flood_dates": [u["date"] for u in used],
         "slots": {u["date"]: {"scene": u["scene"], "cloud_pct": u["cloud_pct"],
                               "flood_green_pct": u["flood_green_pct"], "ndvi_mean": u["ndvi_mean"]}
                   for u in used},
