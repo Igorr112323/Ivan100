@@ -34,8 +34,8 @@ SLOTS = [
 HALF_LON, HALF_LAT = 0.060, 0.050          # окно кандидата = рабочий полигон: ~10.6 x 11.1 км
 PX = 80                                     # размер окна чтения, ~80 м на пиксель
 
-LATS = [45.25, 45.35, 45.45]
-LONS = [37.80, 37.90, 38.00]
+LATS = [45.30, 45.40, 45.50, 45.60]
+LONS = [37.60, 37.75, 37.90, 38.05]
 
 
 def search(lon: float, lat: float, start: str, end: str):
@@ -99,7 +99,7 @@ def blockiness(a: np.ndarray) -> float:
 
 def main() -> None:
     print(f"{'широта':>7} {'долгота':>8} {'NDVI май':>9} {'NDVI июл':>9} {'NDVI сен':>9} "
-          f"{'рис.подъём':>11} {'LSWI>NDVI май':>14} {'LSWI>NDVI июл':>14} {'вода май':>9} {'блочность':>10}")
+          f"{'рис.подъём':>11} {'LSWI>NDVI май':>14} {'LSWI>NDVI июл':>14} {'вода макс':>10} {'блочность':>10}")
     rows = []
     with Env(**GDAL_ENV):
         for lat in LATS:
@@ -144,7 +144,7 @@ def main() -> None:
                 like = float(np.nanmean(((jul["ndvi"][ok] - may["ndvi"][ok]) > 0.05) & (jul["ndvi"][ok] > 0.5)))
                 f_may = float(np.nanmean(may["lswi"][ok] > may["ndvi"][ok] - 0.05))
                 f_jul = float(np.nanmean(jul["lswi"][ok] > jul["ndvi"][ok] - 0.05))
-                wat = float(np.nanmean(may["ndwi"][ok] > 0))
+                wat = max(float(np.nanmean(per[k]["ndwi"][ok] > 0)) for k in per)
                 blk = blockiness(may["ndvi"])
                 rows.append((lat, lon, np.nanmean(may["ndvi"][ok]), np.nanmean(jul["ndvi"][ok]),
                              np.nanmean(sep["ndvi"][ok]), like, f_may, f_jul, wat, blk))

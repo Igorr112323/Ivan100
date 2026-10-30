@@ -34,11 +34,22 @@ from common import AOI, DATA, SENTINEL, WEB, grid_shape, log, write_json
 
 GEOD = Geod(ellps="WGS84")
 MIN_HA, MAX_HA = 8.0, 220.0
-DEM_URL = (
-    "https://copernicus-dem-30m.s3.amazonaws.com/"
-    "Copernicus_DSM_COG_30_N45_00_E038_00_DEM/"
-    "Copernicus_DSM_COG_30_N45_00_E038_00_DEM.tif"
-)
+DEM_BASE = "https://copernicus-dem-30m.s3.amazonaws.com"
+
+
+def dem_urls() -> list[str]:
+    """Тайлы Copernicus DEM GLO-30, покрывающие полигон (1° x 1°, публичный набор AWS)."""
+    w, s_, e, n = AOI["bbox"]
+    urls = []
+    for lat in (int(s_ // 1), int(n // 1)):
+        for lon in (int(w // 1), int(e // 1)):
+            ns = "N" if lat >= 0 else "S"
+            ew = "E" if lon >= 0 else "W"
+            name = f"Copernicus_DSM_COG_30_{ns}{abs(lat):02d}_00_{ew}{abs(lon):03d}_00_DEM"
+            url = f"{DEM_BASE}/{name}/{name}.tif"
+            if url not in urls:
+                urls.append(url)
+    return urls
 GDAL_ENV = dict(
     GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
     GDAL_HTTP_MAX_RETRY="6",
@@ -55,8 +66,18 @@ def load_raster(path: Path) -> np.ndarray:
 
 def read_dem(width: int, height: int, transform) -> np.ndarray | None:
     """Отметки рельефа из Copernicus DEM GLO-30 (публичный набор, без ключей)."""
-    try:
-        with Env(**GDAL_ENV), rasterio.open(f"/vsicurl/{DEM_URL}") as src:
+    for url in dem_urls():
+        try:
+            return _read_dem_one(url, width, height, transform)
+        except Exception as exc:  # noqa: BLE001
+            log(f"DEM {url.rsplit('/', 1)[-1]}: {type(exc).__name__}")
+    log("DEM недоступен: отметки не получены")
+    return None
+
+
+def _read_dem_one(url: str, width: int, height: int, transform) -> np.ndarray:
+    if True:
+        with Env(**GDAL_ENV), rasterio.open(f"/vsicurl/{url}") as src:
             from rasterio.windows import from_bounds as win_from_bounds
 
             w, s, e, n = AOI["bbox"]
