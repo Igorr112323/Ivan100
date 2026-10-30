@@ -220,6 +220,11 @@ def main() -> None:
             "scene_id": peak["id"],
             "method": "NDWI > 0 -> морфологическая очистка -> водораздел по карте расстояний -> векторизация",
             "dem": "Copernicus DEM GLO-30 (публичный набор AWS Open Data)" if dem is not None else "недоступен",
+            "aoi": {
+                "bbox": AOI["bbox"],
+                "lat": round((AOI["bbox"][1] + AOI["bbox"][3]) / 2, 4),
+                "lon": round((AOI["bbox"][0] + AOI["bbox"][2]) / 2, 4),
+            },
             "count": len(features_out),
             "total_ha": round(sum(c["area_ha"] for c in checks), 1),
             "mean_elev_m": round(mean_elev, 2),

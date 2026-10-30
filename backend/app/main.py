@@ -32,13 +32,34 @@ CACHE_LOCK = threading.Lock()
 
 # ----------------------------------------------------------------------------- контекст
 
+BASE_PERC: dict[str, float] = {}
+
+
+def base_percolation(checks: list, meta: dict, mean_elev: float) -> tuple[float, int]:
+    """Фильтрация калибруется один раз — по последнему сезону с данными.
+
+    Почва не меняется от года к году, поэтому подгонять её под каждый сезон нельзя:
+    тогда норма была бы одинаковой при любой погоде. Калибруем по базовому году,
+    а в остальные годы норма меняется вместе с испарением — это честнее.
+    """
+    base_year = max(years_available())
+    key = f"{len(checks)}|{round(mean_elev, 3)}|{base_year}"
+    if key not in BASE_PERC:
+        lat = float((meta.get("aoi") or {}).get("lat", 45.35))
+        rows = engine.load_weather(base_year)
+        season = engine.build_season(rows, lat=lat, elev=mean_elev)
+        BASE_PERC[key] = engine.calibrate_percolation(checks, season)
+    return BASE_PERC[key], base_year
+
+
 @lru_cache(maxsize=8)
 def context(year: int):
     checks, meta = engine.load_checks()
     rows = engine.load_weather(year)
     mean_elev = sum(c.elev_m for c in checks) / max(len(checks), 1)
-    season = engine.build_season(rows, lat=45.35, elev=mean_elev)
-    perc_base = engine.calibrate_percolation(checks, season)
+    lat = float((meta.get("aoi") or {}).get("lat", 45.35))
+    season = engine.build_season(rows, lat=lat, elev=mean_elev)
+    perc_base, base_year = base_percolation(checks, meta, mean_elev)
     return checks, meta, season, perc_base, rows
 
 
