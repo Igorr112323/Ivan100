@@ -68,12 +68,39 @@ FLOOD_START, FLOOD_END = "2025-05-01", "2025-07-10"
 AUTUMN_START, AUTUMN_END = "2025-09-15", "2025-10-20"
 MAX_FLOOD_DATES = 12
 MAX_AUTUMN_DATES = 3
-CLOUD_MAX = 0.40
+CLOUD_MAX = 0.60   # облака маскируются по SCL, поэтому Partial Cloud всё равно годится
 NODATA_MAX = 60.0
 FLOOD_GREEN_MIN = 2   # минимум дат окна затопления со стоячей водой
 NDVI_GREEN_MIN = 0.20  # культура уже видна: отсекает мокрую голую почву
 NDVI_PEAK_MIN = 0.55
 MAX_TILES = 3
+
+
+RAIN_API = "https://archive-api.open-meteo.com/v1/archive"
+RAIN_DAYS = 5          # сколько суток до съёмки держится мокрая поверхность
+RAIN_CLEAN_MM = 5.0    # меньше — считаем, что поле мокрое не от дождя, а от поданной воды
+
+
+def daily_rain(start: str, end: str, lat: float, lon: float) -> dict[str, float]:
+    """Суточные осадки ERA5 (Open-Meteo) — чтобы отличать поданную воду от дождя.
+
+    Это и есть ответ на главную слабость признака: после ливня мокрыми выглядят
+    и кукуруза, и пар. Если за пять суток до съёмки осадков практически не было,
+    мокрый пиксель — это полив, а не погода.
+    """
+    params = {"latitude": lat, "longitude": lon, "start_date": start, "end_date": end,
+              "daily": "precipitation_sum", "timezone": "Europe/Moscow"}
+    r = requests.get(RAIN_API, params=params, timeout=120)
+    if r.status_code != 200:
+        raise SystemExit(f"OSCAR/ERA5: HTTP {r.status_code} {r.text[:200]}")
+    d = r.json()["daily"]
+    return {day: float(v or 0.0) for day, v in zip(d["time"], d["precipitation_sum"])}
+
+
+def rain_before(date: str, rain: dict[str, float]) -> float:
+    import datetime as _dt
+    d0 = _dt.date.fromisoformat(date)
+    return sum(rain.get(str(d0 - _dt.timedelta(days=k)), 0.0) for k in range(RAIN_DAYS + 1))
 
 
 def stac_search(start: str, end: str, limit: int = 80) -> list[dict]:
@@ -211,11 +238,21 @@ def main() -> None:
 
     flood_dates = group_by_date(stac_search(FLOOD_START, FLOOD_END), MAX_FLOOD_DATES)
     autumn = group_by_date(stac_search(AUTUMN_START, AUTUMN_END), MAX_AUTUMN_DATES)
+    rain = daily_rain("2025-04-20", AUTUMN_END, (SEARCH_BBOX[1] + SEARCH_BBOX[3]) / 2,
+                      (SEARCH_BBOX[0] + SEARCH_BBOX[2]) / 2)
+    clean_dates = [d for d, _ in flood_dates if rain_before(d, rain) < RAIN_CLEAN_MM]
+    log(f"чистых от дождя дат (осадки < {RAIN_CLEAN_MM} мм за {RAIN_DAYS} суток): "
+        f"{len(clean_dates)} из {len(flood_dates)} — {clean_dates}")
+    if not clean_dates:
+        raise SystemExit("все даты окна затопления после дождей — полив от дождя не отличить")
     log(f"дат окна затопления {len(flood_dates)} ({FLOOD_START}..{FLOOD_END}), осенних {len(autumn)}")
     if len(flood_dates) < 3:
         raise SystemExit("сцен окна затопления мало — рис по двум датам не отличить от дождя")
 
     flood_green = np.zeros((height, width), dtype="int16")
+    fg_clean = np.zeros((height, width), dtype="int16")  # затоплено на чистых от дождя датах
+    obs_clean = np.zeros((height, width), dtype="int16")  # сколько чистых дат пиксель наблюдался
+    clean_seen = 0
     ndvi_max = np.full((height, width), -1.0, dtype="float32")
     good_any = np.zeros((height, width), dtype=bool)
     used: list[dict] = []
@@ -227,9 +264,16 @@ def main() -> None:
                      for b in ("red", "green", "nir", "swir16", "scl")}
             a = indices(bands)
             ndvi, ndf = a["ndvi"], a["good"]
+            r5 = rain_before(date, rain)
             wet = (a["ndwi"] > 0.0) | (a["lswi"] >= ndvi - 0.05)
             fg = (wet & (ndvi > NDVI_GREEN_MIN) & ndf)
             flood_green += fg.astype("int16")
+            if r5 < RAIN_CLEAN_MM:
+                # Сравниваем только там, где пиксель действительно наблюдался: облако на
+                # одной из дат не должно само по себе выбрасывать чек.
+                fg_clean += (fg & ndf).astype("int16")
+                obs_clean += ndf.astype("int16")
+                clean_seen += 1
             ndvi_max = np.where(np.isfinite(ndvi), np.maximum(ndvi_max, ndvi), ndvi_max)
             good_any |= ndf
             used.append({"date": date, "scene": items[0]["id"], "tiles": [tile_of(i) for i in items],
@@ -238,7 +282,9 @@ def main() -> None:
                          "ndvi_mean": round(float(np.nanmean(ndvi)), 3)})
             log(f"  {date}: затоплено и зелено у {np.nanmean(fg) * 100:5.2f} % | NDWI > 0 у "
                 f"{(a['ndwi'] > 0)[ndf].mean() * 100:5.2f} % | LSWI >= NDVI у "
-                f"{(a['lswi'] >= ndvi)[ndf].mean() * 100:5.2f} % | NDVI средний {np.nanmean(ndvi):.3f}")
+                f"{(a['lswi'] >= ndvi)[ndf].mean() * 100:5.2f} % | NDVI средний "
+                f"{np.nanmean(ndvi):.3f} | осадки за {RAIN_DAYS} суток {r5:.1f} мм"
+                f"{' — чистая' if r5 < RAIN_CLEAN_MM else ' — после дождя'}")
 
         dry = None
         for date, items in autumn:
@@ -252,11 +298,15 @@ def main() -> None:
         if dry is None:
             raise SystemExit("нет осенней сцены — сброс воды не проверить")
 
-    rice = (flood_green >= FLOOD_GREEN_MIN) & (ndvi_max > NDVI_PEAK_MIN) & dry
+    flooded = ((fg_clean == obs_clean) & (obs_clean >= 1)) \
+        if clean_seen else (flood_green >= FLOOD_GREEN_MIN)
+    rice = flooded & (ndvi_max > NDVI_PEAK_MIN) & dry
     px_ha = (COARSE_M * COARSE_M) / 10_000.0
     log("")
     log("=== признак риса по району ===")
-    log(f"  стоячая вода минимум на {FLOOD_GREEN_MIN} датах окна затопления: "
+    log(f"  затоплено на всех {clean_seen} чистых от дождя датах: "
+        f"{np.nansum(flooded) * px_ha:.0f} га ({np.nanmean(flooded) * 100:.2f} % района)")
+    log(f"  затоплено минимум на {FLOOD_GREEN_MIN} датах из всех: "
         f"{np.nansum(flood_green >= FLOOD_GREEN_MIN) * px_ha:.0f} га "
         f"({np.nanmean(flood_green >= FLOOD_GREEN_MIN) * 100:.2f} % района)")
     log(f"  плюс NDVI > {NDVI_PEAK_MIN} на пике: {np.nansum((ndvi_max > NDVI_PEAK_MIN)) * px_ha:.0f} га")
@@ -322,6 +372,9 @@ def main() -> None:
         "tiles": best["tiles"],
         "search_bbox": SEARCH_BBOX,
         "criterion": {
+            "rain_days": RAIN_DAYS,
+            "rain_clean_mm": RAIN_CLEAN_MM,
+            "clean_dates": clean_dates,
             "flood_green_min": FLOOD_GREEN_MIN,
             "ndvi_green_min": NDVI_GREEN_MIN,
             "ndvi_peak_min": NDVI_PEAK_MIN,
