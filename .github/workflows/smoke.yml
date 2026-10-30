@@ -1,0 +1,21 @@
+name: smoke
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Проверка окружения раннера
+        run: |
+          echo "runner ok"
+          python3 -V
+          echo "==="
+          curl -sS -m 20 "https://archive-api.open-meteo.com/v1/archive?latitude=45.35&longitude=38.20&start_date=2025-05-10&end_date=2025-05-12&daily=et0_fao_evapotranspiration&timezone=Europe/Moscow" | head -c 400
+          echo ""
+          echo "==="
+          curl -sS -m 20 -o /dev/null -w "STAC:%{http_code}\n" "https://earth-search.aws.element84.com/v1"
+          curl -sS -m 20 -o /dev/null -w "DEM:%{http_code}\n" -r 0-100 "https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_30_N45_00_E038_00_DEM/Copernicus_DSM_COG_30_N45_00_E038_00_DEM.tif"
