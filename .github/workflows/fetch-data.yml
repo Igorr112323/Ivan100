@@ -68,7 +68,6 @@ jobs:
 
       - name: Снимки Sentinel-2
         if: ${{ env.STEPS == 'all' || env.STEPS == 'imagery' }}
-        continue-on-error: true
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
@@ -97,7 +96,6 @@ jobs:
 
       - name: Контуры и характеристики чеков
         if: ${{ env.STEPS == 'all' || env.STEPS == 'checks' }}
-        continue-on-error: true
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
