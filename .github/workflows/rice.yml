@@ -1,0 +1,141 @@
+name: rice
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "pipeline/find_rice.py"
+      - "pipeline/build_checks.py"
+      - "pipeline/fetch_sentinel.py"
+      - "pipeline/fetch_era5.py"
+      - "pipeline/verify_checks.py"
+      - "pipeline/common.py"
+      - "pipeline/requirements.txt"
+      - ".github/workflows/rice.yml"
+      - "data/_trigger/*.txt"
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "all | scan | weather | imagery | checks | verify"
+        required: false
+        default: "all"
+
+jobs:
+  rice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: write
+      issues: write
+    env:
+      STAGE: ${{ github.event.inputs.stage || 'all' }}
+      YEARS: "2020,2024,2025"
+    steps:
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
+
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Зависимости пайплайна
+        run: pip install -r pipeline/requirements.txt
+
+      - name: Поиск рисового массива
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'scan' }}
+        working-directory: pipeline
+        run: |
+          mkdir -p ../data/_log
+          python find_rice.py 2>&1 | tee ../data/_log/find_rice.txt
+
+      - name: Метеоряд ERA5 для нового полигона
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'weather' }}
+        working-directory: pipeline
+        run: |
+          mkdir -p ../data/_log
+          python fetch_era5.py --years "$YEARS" 2>&1 | tee ../data/_log/weather.txt
+
+      - name: Снимки Sentinel-2
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'imagery' }}
+        working-directory: pipeline
+        run: |
+          mkdir -p ../data/_log
+          python fetch_sentinel.py 2>&1 | tee ../data/_log/imagery.txt
+
+      - name: Контуры чеков с отбором по признаку риса
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'checks' }}
+        working-directory: pipeline
+        run: |
+          mkdir -p ../data/_log
+          python build_checks.py 2>&1 | tee ../data/_log/checks.txt
+
+      - name: Визуальная проверка пяти случайных чеков
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'verify' }}
+        working-directory: pipeline
+        run: |
+          mkdir -p ../data/_log
+          python verify_checks.py 2>&1 | tee ../data/_log/verify.txt
+
+      - name: Фиксация данных
+        if: always()
+        run: |
+          set +e
+          git config user.name "akvachek-pipeline"
+          git config user.email "pipeline@akvachek.local"
+          git add -A data web/public/data
+          echo "staged: $(git diff --cached --name-only | wc -l)"
+          if git diff --cached --quiet; then
+            echo "нет изменений"
+          else
+            git commit -q -m "data: рисовый массив Красноармейского района [skip ci]" && echo "commit ok" || echo "commit FAIL $?"
+            for i in 1 2 3; do
+              git pull --rebase origin "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+              sleep 5
+            done
+            git push origin HEAD:"$GITHUB_REF_NAME" && echo "push ok" || echo "push FAIL $?"
+          fi
+
+      - name: Что получилось
+        if: always()
+        run: |
+          echo "=== data ==="
+          find data -type f | sort | head -60
+          echo "=== полигон ==="
+          cat data/aoi.json 2>/dev/null || echo "нет aoi.json"
+          echo "=== итог чеков ==="
+          python - <<'PY'
+          import json, pathlib
+          p = pathlib.Path("data/checks.geojson")
+          if not p.exists():
+              print("checks.geojson — нет"); raise SystemExit
+          j = json.loads(p.read_text(encoding="utf-8"))
+          m = j["metadata"]
+          print("чеков:", m["count"], "| га:", m["total_ha"],
+                "| мин/медиана/макс:", m["min_ha"], m["median_ha"], m["max_ha"])
+          print("отбраковано:", json.dumps(m.get("rejects", {}), ensure_ascii=False))
+          print("признак риса:", json.dumps(m.get("rice_test", {}), ensure_ascii=False))
+          print("полигон:", json.dumps(m.get("aoi", {}), ensure_ascii=False))
+          PY
+
+      - name: Журнал в задачу
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          {
+            echo "### Прогон $GITHUB_RUN_ID ($GITHUB_RUN_NUMBER), шаг: $STAGE"
+            echo "ветка: $GITHUB_REF_NAME, событие: $GITHUB_EVENT_NAME, время: $(date -u +%FT%TZ)"
+            echo ""
+            for f in find_rice weather imagery checks verify; do
+              echo "#### $f (последние 60 строк)"
+              tail -60 "data/_log/$f.txt" 2>/dev/null || echo "нет журнала"
+              echo ""
+            done
+            echo "#### Файлы"
+            find data -type f | sort | head -40
+          } > /tmp/report.md
+          gh issue comment 1 --repo "$GITHUB_REPOSITORY" --body-file /tmp/report.md \
+            && echo "журнал отправлен" || echo "issue FAIL $?"

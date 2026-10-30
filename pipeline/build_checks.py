@@ -33,7 +33,16 @@ from skimage.segmentation import watershed
 from common import AOI, DATA, SENTINEL, WEB, grid_shape, log, write_json
 
 GEOD = Geod(ellps="WGS84")
-MIN_HA, MAX_HA = 8.0, 220.0
+# Жёсткие фильтры рисового чека (по ТЗ проекта)
+MIN_HA, MAX_HA = 10.0, 60.0      # площадь чека: всё вне диапазона — в брак
+RICE_FRAC_MIN = 0.50             # доля пикселей чека с NDVI > 0.55 в июле-августе
+DRY_FRAC_MIN = 0.50              # доля пикселей чека с NDWI <= 0 в сентябре (чек сброшен)
+SOLIDITY_MIN = 0.78              # площадь / площадь выпуклой оболочки
+RECT_FILL_MIN = 0.52             # площадь / площадь минимального повёрнутого прямоугольника
+CANAL_WIDTH_MAX_M = 60.0         # канал — водная полоса уже 60 м (чеки 200-800 м)
+CANAL_REACH_PX = 5               # канал считается своим, если подходит к чеку ближе 50 м
+NEIGHBOR_PX = 4                  # соседний чек — не дальше 40 м (часть массива, не одиночное пятно)
+NDVI_RICE_MIN = 0.55             # порог сомкнутого полога риса
 DEM_HOSTS = (
     "https://copernicus-dem-30m.s3.amazonaws.com",
     "https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com",
@@ -185,18 +194,76 @@ def segment(water: np.ndarray) -> np.ndarray:
     return labels
 
 
+def canal_mask(water: np.ndarray) -> np.ndarray:
+    """Каналы: узкие водные полосы. Широкие пятна — это чеки и пруды, не каналы.
+
+    Ширина одной маской расстояний не ловится: у чека своя кромка тоже «узкая».
+    Поэтому широкие пятна выделяются морфологическим раскрытием (эрозия 7x7 →
+    наращивание 7x7: прямоугольный чек возвращается целиком, полоса до 60 м исчезает),
+    а каналом остаётся вода вне широких пятен и не шире 60 м.
+    """
+    dist = ndi.distance_transform_edt(water)  # расстояние до сухого пикселя, пиксель 10 м
+    width_m = (2.0 * dist - 1.0) * 10.0  # полная ширина водной полосы в метрах
+    inner = ndi.binary_erosion(water, structure=np.ones((7, 7)))
+    wide = ndi.binary_dilation(inner, structure=np.ones((7, 7)))
+    return water & ~wide & (width_m <= CANAL_WIDTH_MAX_M)
+
+
+def solidity_and_rect(geom: dict) -> tuple[float, float]:
+    """Две меры «четырёхугольности»: по выпуклой оболочке и по описанному прямоугольнику."""
+    from shapely.geometry import shape
+
+    poly = shape(geom)
+    if not poly.is_valid:
+        poly = poly.buffer(0)
+    if poly.is_empty:
+        return 0.0, 0.0
+    hull = poly.convex_hull
+    rect = poly.minimum_rotated_rectangle
+    solidity = float(poly.area / hull.area) if hull.area > 0 else 0.0
+    rect_fill = float(poly.area / rect.area) if rect.area > 0 else 0.0
+    return solidity, rect_fill
+
+
+def pick_dates(scenes: list[dict]) -> tuple[str, str, str]:
+    """Даты трёх контрольных состояний: затопление, полог, сброс воды."""
+    dated = sorted(scenes, key=lambda s: s["date"])
+    flood = [s for s in dated if s["date"] <= "2025-07-15"]
+    veg = [s for s in dated if "2025-07-11" <= s["date"] <= "2025-08-31"]
+    if flood:
+        flood_date = max(flood, key=lambda s: s.get("water_pct") or 0.0)["date"]
+    else:
+        flood_date = dated[0]["date"]
+    if veg:
+        veg_date = max(veg, key=lambda s: s.get("ndvi_mean") or -1.0)["date"]
+    else:
+        veg_date = max(dated, key=lambda s: s.get("ndvi_mean") or -1.0)["date"]
+    dry_date = dated[-1]["date"]
+    return flood_date, veg_date, dry_date
+
+
 def main() -> None:
-    peak = json.loads((SENTINEL / "peak_scene.json").read_text(encoding="utf-8"))
-    date = peak["date"]
+    scenes = json.loads((SENTINEL / "scenes.json").read_text(encoding="utf-8"))["saved"]
+    flood_date, veg_date, dry_date = pick_dates(scenes)
+    log(f"даты контроля: затопление {flood_date}, полог {veg_date}, сброс {dry_date}")
+    date = flood_date
+    peak = next((s for s in scenes if s["date"] == date), scenes[0])
     log(f"сегментация по сцене {date} ({peak['id']})")
 
     width, height, transform = grid_shape()
     ndwi = load_raster(SENTINEL / f"ndwi_{date}.tif")
     ndvi = load_raster(SENTINEL / f"ndvi_{date}.tif")
     valid = load_raster(SENTINEL / f"valid_{date}.tif").astype(bool)
+    ndvi_veg = load_raster(SENTINEL / f"ndvi_{veg_date}.tif")
+    valid_veg = load_raster(SENTINEL / f"valid_{veg_date}.tif").astype(bool)
+    ndwi_dry = load_raster(SENTINEL / f"ndwi_{dry_date}.tif")
+    valid_dry = load_raster(SENTINEL / f"valid_{dry_date}.tif").astype(bool)
 
     water = np.isfinite(ndwi) & valid & (ndwi > 0.0)
     log(f"водное зеркало: {water.mean() * 100:.1f} % полигона")
+    canals = canal_mask(water)
+    log(f"каналы (полосы до {CANAL_WIDTH_MAX_M:.0f} м): {canals.mean() * 100:.2f} % полигона")
+    dist_to_canal = ndi.distance_transform_edt(~canals).astype("float32") * 10.0  # метры
 
     labels = segment(water)
     n_labels = int(labels.max())
@@ -204,15 +271,20 @@ def main() -> None:
 
     dem = read_dem(width, height, transform)
 
-    scenes = json.loads((SENTINEL / "scenes.json").read_text(encoding="utf-8"))["saved"]
-    series_stack = {}
+    stack = {}
     for sc in scenes:
         d = sc["date"]
-        series_stack[d] = {
+        stack[d] = {
             "ndvi": load_raster(SENTINEL / f"ndvi_{d}.tif"),
             "ndwi": load_raster(SENTINEL / f"ndwi_{d}.tif"),
             "valid": load_raster(SENTINEL / f"valid_{d}.tif").astype(bool),
         }
+
+    rejects: dict[str, int] = {}
+    stats = {"solidity": [], "rect": [], "rice": [], "dry": [], "canal_m": []}
+
+    def reject(reason: str) -> None:
+        rejects[reason] = rejects.get(reason, 0) + 1
 
     checks: list[dict] = []
     series: list[dict] = []
@@ -220,28 +292,69 @@ def main() -> None:
     for label_id in range(1, n_labels + 1):
         geom_mask = labels == label_id
         ys, xs = np.nonzero(geom_mask)
-        area_px = int(geom_mask.sum())
-        area_m2 = area_px * 100.0  # 10 м × 10 м
-        area_ha = area_m2 / 10_000.0
-        if area_ha < MIN_HA or area_ha > MAX_HA:
+        area_ha_px = float(geom_mask.sum()) * 100.0 / 10_000.0
+        if area_ha_px < MIN_HA or area_ha_px > MAX_HA:
+            reject(f"площадь вне {MIN_HA:.0f}-{MAX_HA:.0f} га")
             continue
 
         shapes = list(features.shapes(geom_mask.astype("uint8"), mask=geom_mask, transform=transform))
         if not shapes:
+            reject("не векторизуется")
             continue
         geom, _ = max(shapes, key=lambda s: s[1])
         ring = [[round(float(x), 6), round(float(y), 6)] for x, y in geom["coordinates"][0]]
-        geom = {"type": "Polygon", "coordinates": [ring]}
         if len(ring) < 5:
+            reject("вырожденный контур")
             continue
-        # уточняем площадь по эллипсоиду, а не по счёту пикселей
-        lons = [p[0] for p in ring]
-        lats = [p[1] for p in ring]
+        geom = {"type": "Polygon", "coordinates": [ring]}
+
         try:
-            poly_area_m2 = abs(GEOD.geometry_area_perimeter({"type": "Polygon", "coordinates": [ring]})[0])
-            area_ha = poly_area_m2 / 10_000.0
+            area_m2 = abs(GEOD.geometry_area_perimeter(geom)[0])
         except Exception:  # noqa: BLE001
-            poly_area_m2 = area_m2
+            area_m2 = area_ha_px * 10_000.0
+        area_ha = area_m2 / 10_000.0
+        if area_ha < MIN_HA or area_ha > MAX_HA:
+            reject(f"площадь вне {MIN_HA:.0f}-{MAX_HA:.0f} га (эллипсоид)")
+            continue
+
+        # признак риса по контуру: полог в июле-августе и сброс воды в сентябре
+        m_veg = geom_mask & valid_veg & np.isfinite(ndvi_veg)
+        if m_veg.sum() < 20:
+            reject("нет годных пикселей на дату полога")
+            continue
+        rice_frac = float(np.nanmean(ndvi_veg[m_veg] > NDVI_RICE_MIN))
+        stats["rice"].append(rice_frac)
+        if rice_frac < RICE_FRAC_MIN:
+            reject(f"нет полога риса (NDVI > {NDVI_RICE_MIN}) в июле-августе")
+            continue
+
+        m_dry = geom_mask & valid_dry & np.isfinite(ndwi_dry)
+        dry_frac = float(np.nanmean(ndwi_dry[m_dry] <= 0.0)) if m_dry.sum() >= 20 else 0.0
+        stats["dry"].append(dry_frac)
+        if dry_frac < DRY_FRAC_MIN:
+            reject("не сброшен в сентябре (вода стоит круглый год)")
+            continue
+
+        solidity, rect_fill = solidity_and_rect(geom)
+        stats["solidity"].append(solidity)
+        stats["rect"].append(rect_fill)
+        if solidity < SOLIDITY_MIN:
+            reject("форма не чек (изрезанный контур)")
+            continue
+        if rect_fill < RECT_FILL_MIN:
+            reject("форма не четырёхугольная")
+            continue
+
+        canal_m = float(dist_to_canal[geom_mask].min())
+        if canal_m > CANAL_REACH_PX * 10.0:
+            reject(f"нет канала ближе {CANAL_REACH_PX * 10} м")
+            continue
+        stats["canal_m"].append(canal_m)
+
+        others = (labels > 0) & ~geom_mask
+        if not (ndi.binary_dilation(geom_mask, iterations=NEIGHBOR_PX) & others).any():
+            reject("одиночное пятно, вне массива")
+            continue
 
         elev = float(np.nanmean(dem[geom_mask])) if dem is not None else None
         cy, cx = float(ys.mean()), float(xs.mean())
@@ -251,16 +364,41 @@ def main() -> None:
             "id": len(checks) + 1,
             "area_ha": round(area_ha, 2),
             "elev_m": round(elev, 2) if elev is not None else None,
+            "rice_frac": round(rice_frac, 3),
+            "dry_frac": round(dry_frac, 3),
+            "canal_m": round(canal_m, 1),
+            "solidity": round(solidity, 3),
+            "rect_fill": round(rect_fill, 3),
             "ndvi_peak": round(float(np.nanmean(ndvi[geom_mask])), 4) if np.isfinite(ndvi[geom_mask]).any() else None,
             "ndwi_peak": round(float(np.nanmean(ndwi[geom_mask])), 4) if np.isfinite(ndwi[geom_mask]).any() else None,
             "centroid": [round(clon, 6), round(clat, 6)],
         }
         checks.append({"row": row, "geom": geom, "mask": geom_mask, "area_ha": area_ha})
 
+        # сколько соседних чеков у контура — признак принадлежности массиву
+        ring_mask = ndi.binary_dilation(geom_mask, iterations=NEIGHBOR_PX) & ~geom_mask
+        nb = np.unique(labels[ring_mask])
+        row["neighbors"] = int(sum(1 for v in nb if v > 0))
+
+    log("")
+    log("=== отбраковка контуров ===")
+    log(f"  всего контуров после водораздела: {n_labels}")
+    for reason, n in sorted(rejects.items(), key=lambda kv: -kv[1]):
+        log(f"  отбраковано {n:5d} — {reason}")
+    for key, label in (("solidity", "заполнение выпуклой оболочки"), ("rect", "заполнение прямоугольника"),
+                       ("rice", "доля пикселей с пологом риса"), ("dry", "доля пикселей без воды в сентябре"),
+                       ("canal_m", "расстояние до канала, м")):
+        if stats[key]:
+            arr = np.array(stats[key])
+            log(f"  {label}: медиана {np.median(arr):.2f}, 10-й процентиль {np.percentile(arr, 10):.2f}, "
+                f"90-й {np.percentile(arr, 90):.2f}")
+    log(f"  принято чеков: {len(checks)}")
+    log("")
+
     if not checks:
         from common import die
 
-        die("контуры чеков не выделены — сегментация не сработала")
+        die("контуры чеков не выделены — сегментация или фильтры не сработали")
 
     elevations = [c["row"]["elev_m"] for c in checks if c["row"]["elev_m"] is not None]
     mean_elev = float(np.mean(elevations)) if elevations else 0.0
@@ -272,14 +410,12 @@ def main() -> None:
         row["dz_m"] = round(dz, 2)
         # Гидравлический КПД подачи: упрощённая модель (калибровка — этап 2 проекта)
         row["kpd"] = round(max(0.55, min(0.92, 0.80 - 0.012 * dz)), 3)
-        features_out.append(
-            {"type": "Feature", "properties": row, "geometry": c["geom"]}
-        )
+        features_out.append({"type": "Feature", "properties": row, "geometry": c["geom"]})
 
         ser = []
         for sc in scenes:
             d = sc["date"]
-            st = series_stack[d]
+            st = stack[d]
             m = c["mask"] & st["valid"] & np.isfinite(st["ndvi"])
             if m.sum() < 20:
                 continue
@@ -294,15 +430,30 @@ def main() -> None:
             )
         series.append({"id": row["id"], "series": ser})
 
+    areas = [c["area_ha"] for c in checks]
     collection = {
         "type": "FeatureCollection",
         "name": "Рисовые чеки полигона (оцифрованы по Sentinel-2)",
         "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
         "metadata": {
-            "source": "Контуры получены автоматической сегментацией водного зеркала по снимку Sentinel-2 L2A",
+            "source": "Контуры получены сегментацией водного зеркала по снимку Sentinel-2 L2A "
+                      "с отбором по признаку риса",
             "scene_date": date,
             "scene_id": peak["id"],
-            "method": "NDWI > 0 -> морфологическая очистка -> водораздел по карте расстояний -> векторизация",
+            "method": "NDWI > 0 -> морфологическая очистка -> водораздел по карте расстояний -> "
+                      "векторизация -> фильтры рисового чека",
+            "rice_test": {
+                "flood_date": flood_date,
+                "veg_date": veg_date,
+                "dry_date": dry_date,
+                "veg_ndvi_min": NDVI_RICE_MIN,
+                "rice_frac_min": RICE_FRAC_MIN,
+                "dry_frac_min": DRY_FRAC_MIN,
+                "area_ha": [MIN_HA, MAX_HA],
+                "solidity_min": SOLIDITY_MIN,
+                "rect_fill_min": RECT_FILL_MIN,
+                "canal_reach_m": CANAL_REACH_PX * 10,
+            },
             "dem": DEM_SOURCE,
             "aoi": {
                 "name": AOI["name"],
@@ -311,10 +462,12 @@ def main() -> None:
                 "lon": round((AOI["bbox"][0] + AOI["bbox"][2]) / 2, 4),
             },
             "count": len(features_out),
-            "total_ha": round(sum(c["area_ha"] for c in checks), 1),
+            "total_ha": round(sum(areas), 1),
+            "min_ha": round(float(np.min(areas)), 2),
+            "median_ha": round(float(np.median(areas)), 2),
+            "max_ha": round(float(np.max(areas)), 2),
             "mean_elev_m": round(mean_elev, 2),
-            "min_ha": MIN_HA,
-            "max_ha": MAX_HA,
+            "rejects": rejects,
         },
         "features": features_out,
     }
@@ -326,7 +479,7 @@ def main() -> None:
     shutil.copy(DATA / "checks.geojson", WEB / "checks.geojson")
     shutil.copy(DATA / "checks_series.json", WEB / "checks_series.json")
     log(f"чеков: {len(features_out)}, площадь: {collection['metadata']['total_ha']} га, "
-        f"средняя отметка: {mean_elev:.2f} м")
+        f"медиана {collection['metadata']['median_ha']} га, средняя отметка: {mean_elev:.2f} м")
 
 
 if __name__ == "__main__":

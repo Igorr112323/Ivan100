@@ -8,6 +8,8 @@
 """
 from __future__ import annotations
 
+import json
+import math
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -22,16 +24,24 @@ WEB = ROOT / "web" / "public" / "data"
 for _p in (DATA, WEATHER, SENTINEL, OPT):
     _p.mkdir(parents=True, exist_ok=True)
 
-# Полигон выбран по спутниковым признакам риса (см. pipeline/probe_aoi.py):
-# доля открытой воды до 35 %, сигнал затопления LSWI >= NDVI у 36-46 % пикселей,
-# максимум NDVI приходится на июль-август. Это дельтовый рисовый массив Краснодарского края.
-AOI = {
-    "name": "Рисовый массив в дельте Кубани, Краснодарский край",
-    "lat": 45.50,
-    "lon": 37.75,
-    "bbox": [37.630, 45.400, 37.870, 45.600],  # minx, miny, maxx, maxy (WGS84)
+# Полигон: Красноармейский район Краснодарского края, окрестности ст. Полтавской.
+# Точные границы подбирает pipeline/find_rice.py по признаку риса и пишет в data/aoi.json;
+# ниже — значение по умолчанию на случай, если подбор ещё не выполнялся.
+DEFAULT_AOI = {
+    "name": "Рисовый массив, Красноармейский район, ст. Полтавская",
+    "lat": 45.3733,
+    "lon": 38.1725,
+    "bbox": [38.0975, 45.3213, 38.2475, 45.4253],  # minx, miny, maxx, maxy (WGS84)
     "utm_epsg": 32637,  # UTM 37N — зона съёмки Sentinel-2 для этой территории
 }
+
+AOI_FILE = DATA / "aoi.json"
+AOI = DEFAULT_AOI
+if AOI_FILE.exists():
+    try:
+        AOI = json.loads(AOI_FILE.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        AOI = DEFAULT_AOI
 
 # Сезон вегетации риса на Кубани
 SEASON_START_MD = "05-01"
@@ -39,8 +49,8 @@ SEASON_END_MD = "09-30"
 
 # Расчётная сетка 10 м в географических координатах (единая для всех растров)
 LAT_M = 110_574.0
-LON_M = 111_320.0 * 0.7005  # cos(45.50°) ≈ 0.7005, метров в градусе долготы на широте полигона
-GRID_DX = 10.0 / (LON_M)      # градусы долготы на 10 м
+LON_M = 111_320.0 * math.cos(math.radians((AOI["bbox"][1] + AOI["bbox"][3]) / 2.0))
+GRID_DX = 10.0 / (LON_M)      # градусы долготы на 10 м на широте полигона
 GRID_DY = 10.0 / LAT_M        # градусы широты на 10 м
 
 
