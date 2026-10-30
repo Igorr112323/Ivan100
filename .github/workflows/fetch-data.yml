@@ -4,7 +4,11 @@ on:
   push:
     branches: ["**"]
     paths:
-      - "pipeline/**"
+      - "pipeline/common.py"
+      - "pipeline/fetch_era5.py"
+      - "pipeline/fetch_sentinel.py"
+      - "pipeline/build_checks.py"
+      - "pipeline/requirements.txt"
       - ".github/workflows/fetch-data.yml"
   workflow_dispatch:
     inputs:

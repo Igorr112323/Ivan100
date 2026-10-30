@@ -1,0 +1,45 @@
+name: probe
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "pipeline/probe_aoi.py"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r pipeline/requirements.txt
+      - name: Разведка участка
+        working-directory: pipeline
+        run: |
+          mkdir -p ../data/_log
+          python probe_aoi.py 2>&1 | tee ../data/_log/probe.txt | tail -60
+      - name: Фиксация
+        if: always()
+        run: |
+          set +e
+          git config user.name "akvachek-pipeline"
+          git config user.email "pipeline@akvachek.local"
+          git add -A data/_log || true
+          git diff --cached --quiet || git commit -q -m "data: разведка участка [skip ci]"
+          for i in 1 2 3; do git pull --rebase origin "$GITHUB_REF_NAME" >/dev/null 2>&1 && break; sleep 5; done
+          git push origin HEAD:"$GITHUB_REF_NAME" || true
+      - name: Журнал в задачу
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          { echo "### Разведка, прогон $GITHUB_RUN_ID"; echo ""; echo '```'; tail -60 data/_log/probe.txt 2>/dev/null; echo '```'; } > /tmp/p.md
+          gh issue comment 1 --repo "$GITHUB_REPOSITORY" --body-file /tmp/p.md || echo "issue FAIL"
