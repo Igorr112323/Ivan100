@@ -8,7 +8,7 @@
 
 | Часть | Что делает |
 |---|---|
-| `pipeline/` | Добыча РЕАЛЬНЫХ данных: Sentinel-2 L2A (STAC + публичные COG на AWS), ERA5 (ECMWF), Copernicus DEM GLO-30 |
+| `pipeline/` | Добыча РЕАЛЬНЫХ данных: Sentinel-2 L2A (STAC + публичные COG на AWS), ERA5 (ECMWF), цифровая модель рельефа; сцены соседних тайлов MGRS сшиваются |
 | `data/` | Результат пайплайна: снимки, индексы, контуры чеков, метеоряд |
 | `backend/` | FastAPI: FAO-56 Penman–Monteith, водный баланс чека, задача ЛП (PuLP + CBC), базовые стратегии, Монте-Карло, экономика |
 | `web/` | Интерфейс:React + Vite + TypeScript, карта Leaflet, графики на SVG, оформление — «рабочий чертёж мелиоратора» |
@@ -74,7 +74,7 @@ git pull && docker compose up -d --build
 
 * Sentinel-2 L2A — Copernicus/ESA, публичные COG на AWS Open Data («Содержит обработанные данные Copernicus Sentinel»);
 * ERA5 — ECMWF, Historical Weather API (Open-Meteo);
-* Copernicus DEM GLO-30 — ESA / AWS Open Data;
+* Цифровая модель рельефа — Copernicus DEM GLO-30 (ESA / AWS Open Data); при недоступности тайла пайплайн берёт публичный набор AWS Terrain Tiles и честно указывает это в метаданных;
 * FAO Irrigation and Drainage Papers 56 и 33;
 * статистика по рису — Росстат и Национальный рисовый союз, 2025 г.
 
