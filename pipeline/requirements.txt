@@ -6,3 +6,4 @@ scipy==1.13.1
 scikit-image==0.23.2
 shapely==2.0.6
 pillow==10.4.0
+matplotlib==3.9.2
