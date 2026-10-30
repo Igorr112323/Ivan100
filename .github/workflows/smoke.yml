@@ -7,15 +7,25 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Проверка окружения раннера
+      - name: Проверка checkout
+        uses: actions/checkout@v4
+
+      - name: Проверка setup-python без кэша
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Проверка установки зависимостей
         run: |
-          echo "runner ok"
-          python3 -V
-          echo "==="
-          curl -sS -m 20 "https://archive-api.open-meteo.com/v1/archive?latitude=45.35&longitude=38.20&start_date=2025-05-10&end_date=2025-05-12&daily=et0_fao_evapotranspiration&timezone=Europe/Moscow" | head -c 400
-          echo ""
-          echo "==="
-          curl -sS -m 20 -o /dev/null -w "STAC:%{http_code}\n" "https://earth-search.aws.element84.com/v1"
-          curl -sS -m 20 -o /dev/null -w "DEM:%{http_code}\n" -r 0-100 "https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_30_N45_00_E038_00_DEM/Copernicus_DSM_COG_30_N45_00_E038_00_DEM.tif"
+          python -m pip install --upgrade pip
+          pip install -r pipeline/requirements.txt
+          python -c "import rasterio, skimage, pyproj, scipy; print('rasterio', rasterio.__version__)"
+
+      - name: Проверка доступности источников
+        run: |
+          curl -sS -m 25 -o /dev/null -w "STAC:%{http_code}\n" "https://earth-search.aws.element84.com/v1"
+          curl -sS -m 25 -o /dev/null -w "COG:%{http_code}\n" -r 0-1000 "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/37/T/DL/2025/8/S2C_37TDL_20250830_0_L2A/B04.tif"
+          curl -sS -m 25 -o /dev/null -w "DEM:%{http_code}\n" -r 0-1000 "https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_30_N45_00_E038_00_DEM/Copernicus_DSM_COG_30_N45_00_E038_00_DEM.tif"
+          curl -sS -m 25 -o /dev/null -w "ERA5:%{http_code}\n" "https://archive-api.open-meteo.com/v1/archive?latitude=45.35&longitude=38.20&start_date=2025-05-10&end_date=2025-05-12&daily=et0_fao_evapotranspiration&timezone=Europe/Moscow"
