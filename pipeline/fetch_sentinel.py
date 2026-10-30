@@ -186,6 +186,7 @@ def main() -> None:
             p = profile.copy()
             p["dtype"] = "uint8"
             p["nodata"] = 0
+            p["predictor"] = 2  # для целочисленных данных PREDICTOR=3 (плавающая точка) недопустим
             with rasterio.open(SENTINEL / f"valid_{date}.tif", "w", **p) as dst:
                 dst.write(valid, 1)
 
