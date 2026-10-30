@@ -1,4 +1,4 @@
-[22:24:42] на проверку взято 5 чеков из 68 (seed 20251031)
+[22:28:57] на проверку взято 5 чеков из 127 (seed 20251031)
 Traceback (most recent call last):
   File "/home/runner/work/Ivan100/Ivan100/pipeline/verify_checks.py", line 182, in <module>
     main()
