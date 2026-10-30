@@ -139,10 +139,10 @@ def group_by_date(features: list[dict], limit: int, want: int = 0) -> list[tuple
     by_date: dict[str, list[dict]] = {}
     for f in features:
         p = f.get("properties", {})
-        cloud, nodata = p.get("eo:cloud_cover"), p.get("s2:nodata_pixel_percentage")
-        if cloud is None or nodata is None:
+        if p.get("eo:cloud_cover") is None or p.get("s2:nodata_pixel_percentage") is None:
             log(f"    отсеяна {f['id']}: нет метаданных облачности")
             continue
+        cloud, nodata = cloud_of(f), p["s2:nodata_pixel_percentage"]
         if cloud > CLOUD_MAX:
             log(f"    отсеяна {f['id']}: облака {cloud * 100:.0f} % > {CLOUD_MAX * 100:.0f} %")
             continue
