@@ -76,8 +76,7 @@ def read_dem(width: int, height: int, transform) -> np.ndarray | None:
 
 
 def _read_dem_one(url: str, width: int, height: int, transform) -> np.ndarray:
-    if True:
-        with Env(**GDAL_ENV), rasterio.open(f"/vsicurl/{url}") as src:
+    with Env(**GDAL_ENV), rasterio.open(f"/vsicurl/{url}") as src:
             from rasterio.windows import from_bounds as win_from_bounds
 
             w, s, e, n = AOI["bbox"]
@@ -95,9 +94,6 @@ def _read_dem_one(url: str, width: int, height: int, transform) -> np.ndarray:
                 src_nodata=src.nodata,
             )
             return out
-    except Exception as exc:  # noqa: BLE001
-        log(f"DEM недоступен: {exc!r}")
-        return None
 
 
 def segment(water: np.ndarray) -> np.ndarray:
