@@ -35,8 +35,17 @@ from common import AOI, DATA, SENTINEL, WEB, grid_shape, log, write_json
 GEOD = Geod(ellps="WGS84")
 # Жёсткие фильтры рисового чека (по ТЗ проекта)
 MIN_HA, MAX_HA = 10.0, 60.0      # площадь чека: всё вне диапазона — в брак
-RICE_FRAC_MIN = 0.50             # доля пикселей чека с NDVI > 0.55 в июле-августе
+RICE_FRAC_MIN = 0.50             # доля пикселей чека с NDVI > 0.55 на пике вегетации
 DRY_FRAC_MIN = 0.50              # доля пикселей чека с NDWI <= 0 в сентябре (чек сброшен)
+# Главный признак риса: вода под зелёным пологом. Открытым зеркалом (NDWI > 0) затопленный
+# чек виден только до смыкания всходов; потом воду показывает LSWI >= NDVI - 0.05.
+# Требуем воду минимум на двух летних датах: однократная мочка после дождя у пропашных
+# бывает, месяц под водой — только у риса.
+SUMMER_FROM, SUMMER_TO = "2025-06-01", "2025-08-25"
+FLOOD_GREEN_MIN_DATES = 2        # минимум летних дат «под водой и зелёный»
+FLOOD_FRAC_MIN = 0.50            # и такая доля площади чека
+NDVI_GREEN_MIN = 0.25            # культура видна, полог ещё не сомкнут
+LSWI_MARGIN = 0.05               # допуск на шум индекса
 SOLIDITY_MIN = 0.78              # площадь / площадь выпуклой оболочки
 RECT_FILL_MIN = 0.52             # площадь / площадь минимального повёрнутого прямоугольника
 CANAL_WIDTH_MAX_M = 60.0         # канал — водная полоса уже 60 м (чеки 200-800 м)
@@ -248,50 +257,62 @@ def solidity_and_rect(geom: dict) -> tuple[float, float]:
     return solidity, rect_fill
 
 
-def pick_dates(scenes: list[dict]) -> tuple[str, str, str]:
-    """Даты трёх контрольных состояний: затопление, полог, сброс воды."""
-    dated = sorted(scenes, key=lambda s: s["date"])
-    flood = [s for s in dated if s["date"] <= "2025-07-15"]
-    veg = [s for s in dated if "2025-07-11" <= s["date"] <= "2025-08-31"]
-    if flood:
-        flood_date = max(flood, key=lambda s: s.get("water_pct") or 0.0)["date"]
-    else:
-        flood_date = dated[0]["date"]
-    if veg:
-        veg_date = max(veg, key=lambda s: s.get("ndvi_mean") or -1.0)["date"]
-    else:
-        veg_date = max(dated, key=lambda s: s.get("ndvi_mean") or -1.0)["date"]
-    dry_date = dated[-1]["date"]
-    return flood_date, veg_date, dry_date
+def pick_dates(scenes: list[dict]) -> tuple[list[str], str, str]:
+    """Летние даты (окно затопления) и осенняя (контроль сброса воды)."""
+    dated = sorted(s["date"] for s in scenes)
+    summer = [d for d in dated if SUMMER_FROM <= d <= SUMMER_TO]
+    autumn = [d for d in dated if d > SUMMER_TO]
+    dry_date = autumn[-1] if autumn else dated[-1]
+    peak_date = max(dated, key=lambda d: next(s.get("ndvi_mean") or -1 for s in scenes if s["date"] == d))
+    return summer, dry_date, peak_date
 
 
 def main() -> None:
     scenes = json.loads((SENTINEL / "scenes.json").read_text(encoding="utf-8"))["saved"]
-    flood_date, veg_date, dry_date = pick_dates(scenes)
-    log(f"даты контроля: затопление {flood_date}, полог {veg_date}, сброс {dry_date}")
-    date = flood_date
+    summer_dates, dry_date, peak_date = pick_dates(scenes)
+    log(f"летних дат {len(summer_dates)}: {summer_dates} | сброс воды {dry_date} | "
+        f"пик NDVI {peak_date}")
+    if len(summer_dates) < FLOOD_GREEN_MIN_DATES:
+        raise SystemExit(f"летних сцен {len(summer_dates)} — признак риса по минимум "
+                         f"{FLOOD_GREEN_MIN_DATES} датам не проверить")
+    date = peak_date
     peak = next((s for s in scenes if s["date"] == date), scenes[0])
-    log(f"сегментация по сцене {date} ({peak['id']})")
 
     width, height, transform = grid_shape()
-    ndwi = load_raster(SENTINEL / f"ndwi_{date}.tif")
-    ndvi = load_raster(SENTINEL / f"ndvi_{date}.tif")
-    lswi = load_raster(SENTINEL / f"lswi_{date}.tif")
-    valid = load_raster(SENTINEL / f"valid_{date}.tif").astype(bool)
-    ndvi_veg = load_raster(SENTINEL / f"ndvi_{veg_date}.tif")
-    valid_veg = load_raster(SENTINEL / f"valid_{veg_date}.tif").astype(bool)
+    # Затопленно-зелёные пиксели считаем по всем летним сценам и копим счётчик дат
+    flood_green = np.zeros((height, width), dtype="int16")
+    ndvi_max = np.full((height, width), -1.0, dtype="float32")
+    flooded_any = np.zeros((height, width), dtype=bool)
+    for d in summer_dates:
+        ndvi_d = load_raster(SENTINEL / f"ndvi_{d}.tif")
+        ndwi_d = load_raster(SENTINEL / f"ndwi_{d}.tif")
+        lswi_d = load_raster(SENTINEL / f"lswi_{d}.tif")
+        valid_d = load_raster(SENTINEL / f"valid_{d}.tif").astype(bool)
+        wet = (ndwi_d > 0.0) | (lswi_d >= ndvi_d - LSWI_MARGIN)
+        fg = wet & (ndvi_d > NDVI_GREEN_MIN) & valid_d & np.isfinite(ndvi_d)
+        flood_green += fg.astype("int16")
+        ndvi_max = np.where(np.isfinite(ndvi_d) & valid_d, np.maximum(ndvi_max, ndvi_d), ndvi_max)
+        flooded_any |= wet & valid_d & np.isfinite(ndwi_d)
+        log(f"  {d}: вода под пологом у {fg.mean() * 100:5.2f} % полигона | NDWI > 0 у "
+            f"{(ndwi_d > 0.0)[valid_d].mean() * 100:5.2f} % | NDVI средний "
+            f"{np.nanmean(ndvi_d):.3f}")
+    ndvi_veg = ndvi_max
+    valid_veg = ndvi_max > -1.0
+    ndvi = load_raster(SENTINEL / f"ndvi_{peak_date}.tif")
+    ndwi = load_raster(SENTINEL / f"ndwi_{peak_date}.tif")
     ndwi_dry = load_raster(SENTINEL / f"ndwi_{dry_date}.tif")
     valid_dry = load_raster(SENTINEL / f"valid_{dry_date}.tif").astype(bool)
 
-    water = np.isfinite(ndwi) & valid & (ndwi > 0.0)
-    # затопление видно двояко: открытым зеркалом либо влагой под сомкнутым пологом
-    flooded = water | (np.isfinite(lswi) & np.isfinite(ndvi) & valid & (lswi > ndvi))
-    rice_px = flooded & (ndvi_veg > NDVI_RICE_MIN) & valid_veg & (ndwi_dry <= 0.0) & valid_dry
+    rice_px = ((flood_green >= FLOOD_GREEN_MIN_DATES) & (ndvi_max > NDVI_RICE_MIN)
+               & (ndwi_dry <= 0.0) & valid_dry)
     rice_field = ndi.binary_closing(rice_px, structure=np.ones((3, 3)))
-    log(f"водное зеркало {water.mean() * 100:.1f} % полигона | затопление с учётом полога "
-        f"{flooded.mean() * 100:.1f} % | маска риса {rice_field.mean() * 100:.1f} % "
+    log(f"вода под зелёным пологом минимум на {FLOOD_GREEN_MIN_DATES} датах: "
+        f"{(flood_green >= FLOOD_GREEN_MIN_DATES).mean() * 100:.2f} % полигона")
+    log(f"плюс NDVI > {NDVI_RICE_MIN} на пике: {(ndvi_max > NDVI_RICE_MIN).mean() * 100:.2f} %")
+    log(f"плюс сухо осенью: {((ndwi_dry <= 0.0) & valid_dry).mean() * 100:.2f} %")
+    log(f"маска риса {rice_field.mean() * 100:.2f} % полигона "
         f"({rice_field.sum() * 100.0 / 10_000:.0f} га)")
-    canals = canal_mask(flooded)
+    canals = canal_mask(flooded_any)
     log(f"каналы (полосы до {CANAL_WIDTH_MAX_M:.0f} м): {canals.mean() * 100:.2f} % полигона")
     dist_to_canal = ndi.distance_transform_edt(~canals).astype("float32") * 10.0  # метры
 
@@ -312,7 +333,7 @@ def main() -> None:
         }
 
     rejects: dict[str, int] = {}
-    stats = {"solidity": [], "rect": [], "rice": [], "dry": [], "canal_m": []}
+    stats = {"solidity": [], "rect": [], "rice": [], "dry": [], "canal_m": [], "flood": []}
 
     def reject(reason: str) -> None:
         rejects[reason] = rejects.get(reason, 0) + 1
@@ -356,7 +377,14 @@ def main() -> None:
         rice_frac = float(np.nanmean(ndvi_veg[m_veg] > NDVI_RICE_MIN))
         stats["rice"].append(rice_frac)
         if rice_frac < RICE_FRAC_MIN:
-            reject(f"нет полога риса (NDVI > {NDVI_RICE_MIN}) в июле-августе")
+            reject(f"нет полога риса (NDVI > {NDVI_RICE_MIN}) на пике")
+            continue
+
+        # главный признак: вода под зелёным пологом минимум на двух летних датах
+        flood_frac = float(np.nanmean(flood_green[geom_mask] >= FLOOD_GREEN_MIN_DATES))
+        stats["flood"].append(flood_frac)
+        if flood_frac < FLOOD_FRAC_MIN:
+            reject(f"нет затопления под пологом (менее {FLOOD_FRAC_MIN:.0%} площади)")
             continue
 
         m_dry = geom_mask & valid_dry & np.isfinite(ndwi_dry)
@@ -396,6 +424,7 @@ def main() -> None:
             "area_ha": round(area_ha, 2),
             "elev_m": round(elev, 2) if elev is not None else None,
             "rice_frac": round(rice_frac, 3),
+            "flood_frac": round(flood_frac, 3),
             "dry_frac": round(dry_frac, 3),
             "canal_m": round(canal_m, 1),
             "solidity": round(solidity, 3),
@@ -417,7 +446,8 @@ def main() -> None:
     for reason, n in sorted(rejects.items(), key=lambda kv: -kv[1]):
         log(f"  отбраковано {n:5d} — {reason}")
     for key, label in (("solidity", "заполнение выпуклой оболочки"), ("rect", "заполнение прямоугольника"),
-                       ("rice", "доля пикселей с пологом риса"), ("dry", "доля пикселей без воды в сентябре"),
+                       ("rice", "доля пикселей с пологом риса"), ("flood", "доля пикселей под водой летом"),
+                       ("dry", "доля пикселей без воды в сентябре"),
                        ("canal_m", "расстояние до канала, м")):
         if stats[key]:
             arr = np.array(stats[key])
@@ -471,16 +501,23 @@ def main() -> None:
                       "за три даты сезона 2025",
             "scene_date": date,
             "scene_id": peak["id"],
-            "method": "маска риса (затопление в мае-июне + NDVI > 0.55 в июле-августе + "
-                      "сухо в сентябре) -> морфологическая очистка -> водораздел по карте "
-                      "расстояний -> векторизация -> фильтры рисового чека",
+            "method": "маска риса (вода под зелёным пологом минимум на двух летних датах + "
+                      "NDVI > 0.55 на пике + сухо осенью) -> морфологическая очистка -> "
+                      "водораздел по карте расстояний -> векторизация -> фильтры рисового чека",
             "rice_test": {
-                "flood_date": flood_date,
-                "veg_date": veg_date,
+                "flood_dates": summer_dates,
+                "flood_date": summer_dates[0],
+                "veg_date": peak_date,
                 "dry_date": dry_date,
                 "veg_ndvi_min": NDVI_RICE_MIN,
                 "rice_frac_min": RICE_FRAC_MIN,
                 "dry_frac_min": DRY_FRAC_MIN,
+                "flood_green_min_dates": FLOOD_GREEN_MIN_DATES,
+                "flood_frac_min": FLOOD_FRAC_MIN,
+                "ndvi_green_min": NDVI_GREEN_MIN,
+                "ndvi_rice_min": NDVI_RICE_MIN,
+                "lswi_margin": LSWI_MARGIN,
+                "summer_dates": summer_dates,
                 "area_ha": [MIN_HA, MAX_HA],
                 "solidity_min": SOLIDITY_MIN,
                 "rect_fill_min": RECT_FILL_MIN,
