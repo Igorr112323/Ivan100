@@ -1,10 +1,4 @@
-[20:22:22] сегментация по сцене 2025-05-22 (S2C_37TCL_20250522_0_L2A)
-[20:22:22] водное зеркало: 23.6 % полигона
-[20:22:22] водораздел выделил 897 контуров
-[20:22:23] DEM Copernicus_DSM_COG_30_N45_00_E037_00_DEM: RasterioIOError
-[20:22:23] DEM Copernicus_DSM_COG_30_N45_00_E037_00_DEM: RasterioIOError
-[20:22:23] тайлы рельефа: 6 x 7 на зуме 13
-[20:22:27] DEM: AWS Terrain Tiles (terrarium), z=13
-[20:22:46] записано data/checks.geojson (926 КБ)
-[20:22:46] записано data/checks_series.json (53 КБ)
-[20:22:46] чеков: 138, площадь: 4149.4 га, средняя отметка: -0.74 м
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/build_checks.py", line 78
+    return dem
+    ^^^^^^^^^^
+SyntaxError: 'return' outside function
