@@ -49,16 +49,19 @@ GDAL_ENV = dict(
 # (45.373 с.ш., 38.172 в.д.). Рамка ~39 x 36 км лежит внутри границ района.
 POLTAVSKAYA = (45.3733, 38.1725)
 SEARCH_BBOX = [37.920, 45.210, 38.420, 45.530]  # minx, miny, maxx, maxy
-COARSE_M = 120.0  # шаг грубой сетки просмотра
+COARSE_M = 60.0   # шаг грубой сетки просмотра (чек ~500 м — это 8 пикселей)
 AOI_HALF_LON = 0.0750  # ±5.87 км по долготе
 AOI_HALF_LAT = 0.0520  # ±5.75 км по широте  => окно ~11.7 x 11.5 км, ~13 500 га
 
 # Три окна сезона: затопление, пик вегетации, сброс воды
 SLOTS = [
-    ("flood", "2025-05-15", "2025-06-25"),
+    ("flood", "2025-05-01", "2025-06-25"),
     ("veg", "2025-07-20", "2025-08-25"),
     ("dry", "2025-09-12", "2025-10-15"),
 ]
+# На дату смотрит не облачность, а сам признак: для затопления — максимум воды,
+# для полога — максимум сомкнутой зелени, для сброса — максимум сухой поверхности.
+CANDIDATES_PER_SLOT = 6
 
 MAX_TILES = 4
 CLOUD_MAX = 0.35
@@ -87,9 +90,13 @@ def tile_of(f: dict) -> str:
     return f.get("properties", {}).get("grid:code") or f["id"].split("_")[1]
 
 
-def pick_scenes(features: list[dict]) -> list[dict]:
-    """Лучшая сцена каждого тайла MGRS, перекрывающего район поиска."""
-    by_tile: dict[str, dict] = {}
+def candidate_dates(features: list[dict], limit: int = CANDIDATES_PER_SLOT) -> list[tuple[str, list[dict]]]:
+    """Кандидаты на дату окна: по одной группе сцен на сутки, сшивка тайлов внутри суток.
+
+    Дату выбирает не облачность, а сам признак окна (см. main), поэтому кандидатов
+    несколько и все они просматриваются на грубой сетке.
+    """
+    by_date: dict[str, list[dict]] = {}
     for f in features:
         p = f.get("properties", {})
         cloud = p.get("eo:cloud_cover")
@@ -98,11 +105,20 @@ def pick_scenes(features: list[dict]) -> list[dict]:
             continue
         if cloud > CLOUD_MAX or nodata > NODATA_MAX:
             continue
-        t = tile_of(f)
-        cur = by_tile.get(t)
-        if cur is None or (cloud, nodata) < (cloud_of(cur), cur["properties"]["s2:nodata_pixel_percentage"]):
-            by_tile[t] = f
-    return sorted(by_tile.values(), key=cloud_of)[:MAX_TILES]
+        date = p["datetime"][:10]
+        by_date.setdefault(date, []).append(f)
+    groups = []
+    for date, items in by_date.items():
+        by_tile: dict[str, dict] = {}
+        for f in items:
+            t = tile_of(f)
+            cur = by_tile.get(t)
+            if cur is None or (cloud_of(f), f["properties"]["s2:nodata_pixel_percentage"]) < \
+                    (cloud_of(cur), cur["properties"]["s2:nodata_pixel_percentage"]):
+                by_tile[t] = f
+        groups.append((date, sorted(by_tile.values(), key=cloud_of)[:MAX_TILES]))
+    groups.sort(key=lambda g: min(cloud_of(i) for i in g[1]))
+    return groups[:limit]
 
 
 def read_coarse(href: str, bbox: list[float], width: int, height: int, transform,
@@ -199,48 +215,79 @@ def main() -> None:
         f"(~{2 * AOI_HALF_LON * 111320 * math.cos(math.radians(lat_c)) / 1000:.1f} x "
         f"{2 * AOI_HALF_LAT * 110.574:.1f} км)")
 
+    bands_of = {
+        "flood": ("red", "green", "nir", "swir16", "scl"),
+        "veg": ("red", "nir", "scl"),
+        "dry": ("green", "nir", "scl"),
+    }
+
+    def indices(bands: dict) -> dict:
+        out: dict = {}
+        scl = bands.get("scl")
+        if scl is None:
+            good = np.ones((height, width), dtype=bool)
+        else:
+            good = ~(np.isin(scl, [0, 1, 3, 8, 9, 10]) | np.isnan(scl))
+        g, r, n, s16 = bands.get("green"), bands.get("red"), bands.get("nir"), bands.get("swir16")
+        with np.errstate(invalid="ignore", divide="ignore"):
+            if g is not None and n is not None:
+                ok = (g > 0) & (n > 0)
+                out["ndwi"] = np.where(ok, (g - n) / (g + n), np.nan)
+            if r is not None and n is not None:
+                ok = (r > 0) & (n > 0)
+                out["ndvi"] = np.where(ok, (n - r) / (n + r), np.nan)
+            if s16 is not None and n is not None:
+                ok = (s16 > 0) & (n > 0)
+                out["lswi"] = np.where(ok, (n - s16) / (n + s16), np.nan)
+        good = good & np.ones((height, width), dtype=bool)
+        for key in list(out):
+            out[key] = np.where(good, out[key], np.nan)
+        out["good"] = good
+        return out
+
+    def metric(name: str, a: dict) -> np.ndarray:
+        if name == "flood":
+            return (a["ndwi"] > 0.0) | (a["lswi"] > a["ndvi"])
+        if name == "veg":
+            return a["ndvi"] > NDVI_VEG_MIN
+        return a["ndwi"] <= 0.0
+
     per: dict[str, dict] = {}
     flood_items: list[dict] = []
 
     with Env(**GDAL_ENV):
-        for name, start, end in SLOTS:
-            feats = stac_search(start, end)
-            items = pick_scenes(feats)
-            log(f"окно {name} ({start}..{end}): найдено сцен {len(feats)}, "
-                f"взято {len(items)}: {[tile_of(i) for i in items]}")
-            if not items:
+        for name, start_md, end_md in SLOTS:
+            feats = stac_search(start_md, end_md)
+            groups = candidate_dates(feats)
+            log(f"окно {name} ({start_md}..{end_md}): сцен {len(feats)}, дат-кандидатов {len(groups)}")
+            if not groups:
                 raise SystemExit(f"нет кондиционных сцен на окно {name} — поиск невозможен")
+            best: dict | None = None
+            for date, items in groups:
+                bands = {
+                    b: read_merged(items, b, SEARCH_BBOX, width, height, transform,
+                                   Resampling.nearest if b == "scl" else Resampling.bilinear)
+                    for b in bands_of[name]
+                }
+                arrs = indices(bands)
+                score = float(np.nanmean(metric(name, arrs) & arrs["good"]))
+                log(f"    дата {date} | тайлы {[tile_of(i) for i in items]} | облака "
+                    f"{min(cloud_of(i) for i in items) * 100:.1f} % | годных {arrs['good'].mean() * 100:.1f} % "
+                    f"| признак окна у {score * 100:.1f} % пикселей")
+                if best is None or score > best["score"]:
+                    best = {"score": score, "arrs": arrs, "date": date, "items": items}
+            assert best is not None
+            arrs = best["arrs"]
+            arrs["date"] = best["date"]
+            arrs["scene"] = best["items"][0]["id"]
+            arrs["tiles"] = [tile_of(i) for i in best["items"]]
+            arrs["cloud"] = round(min(cloud_of(i) for i in best["items"]) * 100, 2)
+            arrs["score"] = best["score"]
+            per[name] = arrs
             if name == "flood":
-                flood_items = items
-            for it in items:
-                log(f"    {it['id']} | тайл {tile_of(it)} | облака "
-                    f"{round(cloud_of(it) * 100, 1)} % | пропуски "
-                    f"{it['properties'].get('s2:nodata_pixel_percentage', 0):.1f} %")
-
-            green = read_merged(items, "green", SEARCH_BBOX, width, height, transform, Resampling.bilinear)
-            red = read_merged(items, "red", SEARCH_BBOX, width, height, transform, Resampling.bilinear)
-            nir = read_merged(items, "nir", SEARCH_BBOX, width, height, transform, Resampling.bilinear)
-            swir = read_merged(items, "swir16", SEARCH_BBOX, width, height, transform, Resampling.bilinear)
-            scl = read_merged(items, "scl", SEARCH_BBOX, width, height, transform, Resampling.nearest)
-
-            ok = (green > 0) & (red > 0) & (nir > 0) & (swir > 0)
-            with np.errstate(invalid="ignore", divide="ignore"):
-                ndvi = np.where(ok, (nir - red) / (nir + red), np.nan)
-                ndwi = np.where(ok, (green - nir) / (green + nir), np.nan)
-                lswi = np.where(ok, (nir - swir) / (nir + swir), np.nan)
-            good = ~(np.isin(scl, [0, 1, 3, 8, 9, 10]) | np.isnan(scl)) & ok
-            per[name] = {
-                "date": items[0]["properties"]["datetime"][:10],
-                "scene": items[0]["id"],
-                "tiles": [tile_of(i) for i in items],
-                "cloud": round(cloud_of(items[0]) * 100, 2),
-                "ndvi": np.where(good, ndvi, np.nan),
-                "ndwi": np.where(good, ndwi, np.nan),
-                "lswi": np.where(good, lswi, np.nan),
-                "good": good,
-            }
-            log(f"    дата {per[name]['date']}, кондиционных пикселей {good.mean() * 100:.1f} %, "
-                f"NDWI > 0 у {np.nanmean(per[name]['ndwi'] > 0) * 100:.1f} %")
+                flood_items = best["items"]
+            log(f"    выбрана дата {best['date']} ({best['items'][0]['id']}) — признак у "
+                f"{best['score'] * 100:.1f} % пикселей")
 
     f, v, d = per["flood"], per["veg"], per["dry"]
     common = f["good"] & v["good"] & d["good"]
@@ -329,11 +376,13 @@ def main() -> None:
         "near": "ст. Полтавская",
         "picked_by": "pipeline/find_rice.py: максимум площади риса по трём признакам "
                      "(вода в мае-июне + NDVI > 0.55 в июле-августе + сухо в сентябре)",
+        "key_dates": {k: per[k]["date"] for k in ("flood", "veg", "dry")},
         "coarse_rice_ha": best["rice_ha"],
         "coarse_coverage": best["coverage"],
         "tiles": best["tiles"],
         "search_bbox": SEARCH_BBOX,
-        "slots": {k: {"date": per[k]["date"], "scene": per[k]["scene"], "cloud_pct": per[k]["cloud"]}
+        "slots": {k: {"date": per[k]["date"], "scene": per[k]["scene"],
+                      "cloud_pct": per[k]["cloud"], "signal_pct": round(per[k]["score"] * 100, 2)}
                   for k in per},
     }
     write_json(DATA / "aoi.json", aoi)

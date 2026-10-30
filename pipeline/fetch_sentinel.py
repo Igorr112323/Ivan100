@@ -76,8 +76,16 @@ def tile_of(f: dict) -> str:
     return f.get("properties", {}).get("grid:code") or f["id"].split("_")[1]
 
 
-def pick_scenes(features: list[dict]) -> list[dict]:
-    """Лучшая сцена каждого тайла MGRS: сначала минимум облачности, затем минимум пропусков."""
+def pick_scenes(features: list[dict], prefer_date: str | None = None) -> list[dict]:
+    """Лучшая сцена каждого тайла MGRS: сначала минимум облачности, затем минимум пропусков.
+
+    Если передана prefer_date — берётся именно эта дата: её выбрал find_rice.py по максимуму
+    признака (затопление, полог, сброс воды), а не по минимуму облачности.
+    """
+    if prefer_date:
+        same = [f for f in features if f["properties"]["datetime"][:10] == prefer_date]
+        if same:
+            features = same
     by_tile: dict[str, dict] = {}
     for f in features:
         p = f.get("properties", {})
@@ -145,7 +153,11 @@ def main() -> None:
     with Env(**GDAL_ENV):
         for start, end, label in SCENE_SLOTS:
             features = stac_search(start, end)
-            items = pick_scenes(features)
+            prefer = None
+            for key, kd in AOI.get("key_dates", {}).items():
+                if start <= kd <= end:
+                    prefer = kd
+            items = pick_scenes(features, prefer)
             catalogue.append(
                 {
                     "slot": label,
