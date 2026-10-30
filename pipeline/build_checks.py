@@ -68,23 +68,26 @@ def load_raster(path: Path) -> np.ndarray:
 
 def read_dem(width: int, height: int, transform) -> np.ndarray | None:
     """Отметки рельефа: сначала Copernicus DEM GLO-30, при отказе — публичные тайлы Terrarium."""
-    for url in dem_urls():
-        try:
-            dem = _read_dem_one(url, width, height, transform)
-            if dem is not None and np.isfinite(dem).mean() > 0.5:
-                log(f"DEM: {url.rsplit('/', 2)[-2]}")
-                return dem
-        except Exception as exc:  # noqa: BLE001
-            log(f"DEM {url.rsplit('/', 2)[-2]}: {type(exc).__name__}")
+DEM_SOURCE = "отметки не получены"
+for url in dem_urls():
     try:
-        dem = read_dem_terrarium(width, height, transform)
+        dem = _read_dem_one(url, width, height, transform)
         if dem is not None and np.isfinite(dem).mean() > 0.5:
-            log("DEM: AWS Terrain Tiles (terrarium), z=13")
+            log(f"DEM: {url.rsplit('/', 2)[-2]}")
+            DEM_SOURCE = "Copernicus DEM GLO-30 (публичный набор AWS Open Data)"
             return dem
     except Exception as exc:  # noqa: BLE001
-        log(f"DEM terrarium: {type(exc).__name__}: {exc}"[:200])
-    log("DEM недоступен: отметки не получены")
-    return None
+        log(f"DEM {url.rsplit('/', 2)[-2]}: {type(exc).__name__}")
+try:
+    dem = read_dem_terrarium(width, height, transform)
+    if dem is not None and np.isfinite(dem).mean() > 0.5:
+        log("DEM: AWS Terrain Tiles (terrarium), z=13")
+        DEM_SOURCE = "AWS Terrain Tiles (публичный тайловый набор высот, ~30 м)"
+        return dem
+except Exception as exc:  # noqa: BLE001
+    log(f"DEM terrarium: {type(exc).__name__}: {exc}"[:200])
+log("DEM недоступен: отметки не получены")
+return None
 
 
 def read_dem_terrarium(width: int, height: int, transform) -> np.ndarray:
@@ -300,7 +303,7 @@ def main() -> None:
             "scene_date": date,
             "scene_id": peak["id"],
             "method": "NDWI > 0 -> морфологическая очистка -> водораздел по карте расстояний -> векторизация",
-            "dem": "Copernicus DEM GLO-30 (публичный набор AWS Open Data)" if dem is not None else "недоступен",
+            "dem": DEM_SOURCE,
             "aoi": {
                 "bbox": AOI["bbox"],
                 "lat": round((AOI["bbox"][1] + AOI["bbox"][3]) / 2, 4),

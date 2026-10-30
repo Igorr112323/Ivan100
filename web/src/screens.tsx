@@ -148,7 +148,7 @@ export function Sheet0({ ctx }: { ctx: Ctx }) {
             {
               t: "Реальный массив, а не модель на бумаге",
               d: meta
-                ? `${meta.checks.count} чеков, ${num(meta.checks.total_ha, 0)} га. Контуры оцифрованы по снимку Sentinel-2, отметки — из Copernicus DEM.`
+                ? `${meta.checks.count} чеков, ${num(meta.checks.total_ha, 0)} га. Контуры оцифрованы по снимку Sentinel-2, отметки — ${meta.metadata?.dem ?? "цифровая модель рельефа"}.`
                 : "",
             },
             {
@@ -1202,7 +1202,7 @@ export function Sheet7({ ctx }: { ctx: Ctx }) {
   const sources = [
     { n: "Sentinel-2 L2A", u: "Copernicus / ESA, COG на AWS Open Data", w: "контуры чеков, NDVI, NDWI, снимок массива" },
     { n: "ERA5", u: "ECMWF, Historical Weather API", w: "суточная погода и эталонная ET₀" },
-    { n: "Copernicus DEM GLO-30", u: "ESA / AWS Open Data", w: "отметки чеков" },
+    { n: "Цифровая модель рельефа", u: "Copernicus DEM GLO-30, при отказе — AWS Terrain Tiles (публичные наборы)", w: "отметки чеков и перепады между ними" },
     { n: "FAO-56, FAO-33", u: "FAO Irrigation and Drainage Papers", w: "испарение и отклик урожая" },
     { n: "Росстат, Национальный рисовый союз", u: "открытая статистика 2025 г.", w: "площадь, урожайность, валовой сбор" },
   ];

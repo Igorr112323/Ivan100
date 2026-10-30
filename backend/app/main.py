@@ -96,6 +96,7 @@ def api_meta():
     norms = [engine.gross_norm(demands["etm"][i], demands["perc"][i], checks[i].kpd)
              for i in range(len(checks))]
     return {
+        "metadata": {k: v for k, v in meta.items() if k != "aoi"},
         "project": {
             "name": "АКВАЧЕК",
             "full": "Система спутникового мониторинга и оптимизации водоподачи "

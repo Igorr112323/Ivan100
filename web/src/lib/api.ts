@@ -17,6 +17,7 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
 
 export interface Meta {
   project: { name: string; full: string; polygon: string };
+  metadata?: { dem?: string; dem_note?: string; scene_date?: string; scene_id?: string; method?: string };
   years: number[];
   checks: {
     count: number;

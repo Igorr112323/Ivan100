@@ -174,7 +174,8 @@ export default function App() {
 
         <div className="sheet-foot no-print">
           <div className="foot-note">
-            Данные: Sentinel-2 (Copernicus/ESA), ERA5 (ECMWF), Copernicus DEM GLO-30. Расчёт: FAO-56, FAO-33,
+            Данные: Sentinel-2 (Copernicus/ESA), ERA5 (ECMWF), цифровая модель рельефа из публичных
+            наборов AWS Open Data. Расчёт: FAO-56, FAO-33,
             задача ЛП на решателе CBC. Контакты и персональные данные в этой версии не публикуются.
           </div>
           <Stamp title={SHEETS[sheet].key} sheet={`${String(sheet + 1).padStart(2, "0")} / 08`} />
