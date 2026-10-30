@@ -70,7 +70,8 @@ AUTUMN_START, AUTUMN_END = "2025-09-15", "2025-10-20"
 MAX_FLOOD_DATES = 12
 MAX_AUTUMN_DATES = 3
 CLOUD_MAX = 0.60   # облака маскируются по SCL, поэтому Partial Cloud всё равно годится
-NODATA_MAX = 60.0
+NODATA_MAX = 100.0  # брак отсекаем по пикселям (маска SCL), а не по проценту сцены:
+                    # соседний тайл, перекрывающий полигон наполовину, — не повод терять дату
 FLOOD_GREEN_MIN = 2   # минимум дат окна затопления со стоячей водой
 NDVI_GREEN_MIN = 0.20  # культура уже видна: отсекает мокрую голую почву
 NDVI_PEAK_MIN = 0.55
@@ -125,15 +126,20 @@ def tile_of(f: dict) -> str:
     return f.get("properties", {}).get("grid:code") or f["id"].split("_")[1]
 
 
-def group_by_date(features: list[dict], limit: int) -> list[tuple[str, list[dict]]]:
+def group_by_date(features: list[dict], limit: int, want: int = 0) -> list[tuple[str, list[dict]]]:
     """Сцены по суткам, внутри суток — лучшая сцена каждого тайла."""
     by_date: dict[str, list[dict]] = {}
     for f in features:
         p = f.get("properties", {})
         cloud, nodata = p.get("eo:cloud_cover"), p.get("s2:nodata_pixel_percentage")
-        if cloud is None or nodata is None or cloud > CLOUD_MAX or nodata > NODATA_MAX:
+        if cloud is None or nodata is None:
+            log(f"    отсеяна {f['id']}: нет метаданных облачности")
+            continue
+        if cloud > CLOUD_MAX:
+            log(f"    отсеяна {f['id']}: облака {cloud * 100:.0f} % > {CLOUD_MAX * 100:.0f} %")
             continue
         by_date.setdefault(p["datetime"][:10], []).append(f)
+    log(f"    сцен в каталоге {len(features)}, дат с годными сценами {len(by_date)}")
     groups = []
     for date, items in sorted(by_date.items()):
         by_tile: dict[str, dict] = {}
@@ -247,8 +253,8 @@ def main() -> None:
     if not clean_dates:
         raise SystemExit("все даты окна затопления после дождей — полив от дождя не отличить")
     log(f"дат окна затопления {len(flood_dates)} ({FLOOD_START}..{FLOOD_END}), осенних {len(autumn)}")
-    if len(flood_dates) < 3:
-        raise SystemExit("сцен окна затопления мало — рис по двум датам не отличить от дождя")
+    if len(flood_dates) < 2:
+        raise SystemExit(f"сцен окна затопления {len(flood_dates)} — признак не проверить")
 
     flood_green = np.zeros((height, width), dtype="int16")
     fg_clean = np.zeros((height, width), dtype="int16")  # затоплено на чистых от дождя датах
