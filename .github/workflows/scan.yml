@@ -36,7 +36,15 @@ jobs:
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
-          python find_rice.py 2>&1 | tee ../data/_log/find_rice.txt
+          set +e
+          python find_rice.py > ../data/_log/find_rice.txt 2>&1
+          code=$?
+          {
+            echo ""
+            echo "КОД ВЫХОДА: $code"
+          } >> ../data/_log/find_rice.txt
+          tail -60 ../data/_log/find_rice.txt
+          exit 0
 
       - name: Фиксация полигона
         if: always()

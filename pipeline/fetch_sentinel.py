@@ -43,14 +43,16 @@ GDAL_ENV = dict(
 )
 
 # Сцены, которые нужны: пик затопления (июнь–июль) + равномерное покрытие сезона для NDVI-ряда
+# Окна съёмки: затопление привязано к маю–июню, потому что в июле сомкнутый рис
+# воду прячет (проверено: NDWI > 0 у 0,2 % района, LSWI < NDVI).
 SCENE_SLOTS = [
-    ("2025-05-01", "2025-06-05", "май–начало июня: всходы, затопление"),
-    ("2025-06-06", "2025-07-10", "июнь–начало июля: кущение, пик затопления"),
-    ("2025-07-11", "2025-08-05", "июль: выметывание"),
-    ("2025-08-06", "2025-08-31", "август: цветение, налив зерна"),
-    ("2025-09-01", "2025-09-30", "сентябрь: созревание, сброс воды"),
+    ("2025-05-15", "2025-06-30", "затопление: залив чеков, всходы", "flood"),
+    ("2025-07-01", "2025-08-05", "пик вегетации: выметывание", "veg"),
+    ("2025-08-06", "2025-08-31", "налив зерна", "veg2"),
+    ("2025-09-01", "2025-10-15", "уборка: сброс воды", "dry"),
 ]
-MAX_TILES = 3  # полигон перекрывают два тайла MGRS; третий — на случай съёмки вне зоны
+MAX_TILES = 3      # полигон перекрывают два тайла MGRS; третий — на случай съёмки вне зоны
+CLOUD_MAX = 0.60   # облака маскируются по SCL, поэтому Partial Cloud всё равно годится
 
 
 def stac_search(start: str, end: str, limit: int = 60) -> list[dict]:
@@ -92,12 +94,12 @@ def pick_scenes(features: list[dict], prefer_date: str | None = None) -> list[di
     by_tile: dict[str, dict] = {}
     for f in features:
         p = f.get("properties", {})
-        cloud = p.get("eo:cloud_cover")
+        cloud = cloud_of(f)
         nodata = p.get("s2:nodata_pixel_percentage")
-        if cloud is None or nodata is None:
+        if p.get("eo:cloud_cover") is None or nodata is None:
             continue
         # тайл может перекрывать полигон частично — такая сцена всё равно нужна для сшивки
-        if cloud > 0.5 or nodata > 70.0:
+        if cloud > CLOUD_MAX or nodata > 70.0:
             continue
         t = tile_of(f)
         if t not in by_tile or (cloud, nodata) < (cloud_of(by_tile[t]),
@@ -154,12 +156,13 @@ def main() -> None:
     slot_scenes: dict[str, list[dict]] = {}
 
     with Env(**GDAL_ENV):
-        for start, end, label in SCENE_SLOTS:
+        for start, end, label, role in SCENE_SLOTS:
             features = stac_search(start, end)
-            prefer = None
-            for key, kd in AOI.get("key_dates", {}).items():
-                if start <= kd <= end:
-                    prefer = kd
+            prefer = AOI.get("key_dates", {}).get(role)
+            if prefer and not (start <= prefer <= end):
+                prefer = None
+            if prefer:
+                log(f"  дата из разведки: {prefer}")
             items = pick_scenes(features, prefer)
             catalogue.append(
                 {

@@ -66,8 +66,13 @@ AOI_HALF_LAT = 0.0520  # ±5.75 км  => окно ~11.7 x 11.5 км
 # воду в июле — значит не найти ничего. Смотрим май–июнь и требуем, чтобы перед
 # съёмкой не было дождя.
 FLOOD_START, FLOOD_END = "2025-05-15", "2025-06-30"
+# Пик вегетации — отдельное окно. Сомкнутый полог NDVI > 0.55 рис набирает только
+# в июле-августе; в конце мая у него NDVI 0,3-0,4, зато у озимой пшеницы 0,8.
+# Смешивать эти окна нельзя: иначе признак выберет мокрую пшеницу.
+VEG_START, VEG_END = "2025-07-01", "2025-08-31"
 AUTUMN_START, AUTUMN_END = "2025-09-15", "2025-10-20"
 MAX_FLOOD_DATES = 12
+MAX_VEG_DATES = 4
 MAX_AUTUMN_DATES = 3
 CLOUD_MAX = 0.60   # облака маскируются по SCL, поэтому Partial Cloud всё равно годится
 NODATA_MAX = 100.0  # брак отсекаем по пикселям (маска SCL), а не по проценту сцены:
@@ -247,6 +252,7 @@ def main() -> None:
         f"{2 * AOI_HALF_LAT * 110.574:.1f} км")
 
     flood_dates = group_by_date(stac_search(FLOOD_START, FLOOD_END), MAX_FLOOD_DATES)
+    veg_dates = group_by_date(stac_search(VEG_START, VEG_END), MAX_VEG_DATES)
     autumn = group_by_date(stac_search(AUTUMN_START, AUTUMN_END), MAX_AUTUMN_DATES)
     rain = daily_rain("2025-04-20", AUTUMN_END, (SEARCH_BBOX[1] + SEARCH_BBOX[3]) / 2,
                       (SEARCH_BBOX[0] + SEARCH_BBOX[2]) / 2)
@@ -255,10 +261,15 @@ def main() -> None:
         f"{len(clean_dates)} из {len(flood_dates)} — {clean_dates}")
     if not clean_dates:
         raise SystemExit("все даты окна затопления после дождей — полив от дождя не отличить")
-    log(f"дат окна затопления {len(flood_dates)} ({FLOOD_START}..{FLOOD_END}), осенних {len(autumn)}")
+    log(f"дат окна затопления {len(flood_dates)} ({FLOOD_START}..{FLOOD_END}), "
+        f"вегетации {len(veg_dates)} ({VEG_START}..{VEG_END}), осенних {len(autumn)}")
     if len(flood_dates) < 2:
         raise SystemExit(f"сцен окна затопления {len(flood_dates)} — признак не проверить")
+    if len(veg_dates) < 1:
+        raise SystemExit("нет сцены пика вегетации — полог риса не проверить")
 
+    veg_used: list[dict] = []
+    ndvi_peak = np.full((height, width), -1.0, dtype="float32")
     flood_green = np.zeros((height, width), dtype="int16")
     fg_clean = np.zeros((height, width), dtype="int16")  # затоплено на чистых от дождя датах
     obs_clean = np.zeros((height, width), dtype="int16")  # сколько чистых дат пиксель наблюдался
@@ -296,6 +307,20 @@ def main() -> None:
                 f"{np.nanmean(ndvi):.3f} | осадки за {RAIN_DAYS} суток {r5:.1f} мм"
                 f"{' — чистая' if r5 < RAIN_CLEAN_MM else ' — после дождя'}")
 
+        for date, items in veg_dates:
+            bands = {b: read_merged(items, b, SEARCH_BBOX, width, height, transform,
+                                    Resampling.nearest if b == "scl" else Resampling.bilinear)
+                     for b in ("red", "nir", "scl")}
+            a = indices(bands)
+            ndvi = a["ndvi"]
+            ndvi_peak = np.where(a["good"] & np.isfinite(ndvi), np.maximum(ndvi_peak, ndvi), ndvi_peak)
+            veg_used.append({"date": date, "scene": items[0]["id"],
+                             "cloud_pct": round(min(cloud_of(i) for i in items) * 100, 2),
+                             "ndvi_mean": round(float(np.nanmean(ndvi)), 3),
+                             "closed_pct": round(float(np.nanmean(ndvi > NDVI_PEAK_MIN)) * 100, 2)})
+            log(f"  {date} (вегетация): NDVI > 0.55 у {np.nanmean(ndvi > 0.55) * 100:.1f} % "
+                f"пикселей, средний {np.nanmean(ndvi):.3f}, тайлы {[tile_of(i) for i in items]}")
+
         dry = None
         for date, items in autumn:
             bands = {b: read_merged(items, b, SEARCH_BBOX, width, height, transform,
@@ -310,7 +335,7 @@ def main() -> None:
 
     flooded = ((fg_clean == obs_clean) & (obs_clean >= 1)) \
         if clean_seen else (flood_green >= FLOOD_GREEN_MIN)
-    rice = flooded & (ndvi_max > NDVI_PEAK_MIN) & dry
+    rice = flooded & (ndvi_peak > NDVI_PEAK_MIN) & dry
     px_ha = (COARSE_M * COARSE_M) / 10_000.0
     log("")
     log("=== признак риса по району ===")
@@ -319,7 +344,9 @@ def main() -> None:
     log(f"  затоплено минимум на {FLOOD_GREEN_MIN} датах из всех: "
         f"{np.nansum(flood_green >= FLOOD_GREEN_MIN) * px_ha:.0f} га "
         f"({np.nanmean(flood_green >= FLOOD_GREEN_MIN) * 100:.2f} % района)")
-    log(f"  плюс NDVI > {NDVI_PEAK_MIN} на пике: {np.nansum((ndvi_max > NDVI_PEAK_MIN)) * px_ha:.0f} га")
+    log(f"  плюс NDVI > {NDVI_PEAK_MIN} на пике лета: "
+        f"{np.nansum(ndvi_peak > NDVI_PEAK_MIN) * px_ha:.0f} га "
+        f"({np.nanmean(ndvi_peak > NDVI_PEAK_MIN) * 100:.1f} % района)")
     log(f"  плюс сухо осенью:                  {np.nansum(dry) * px_ha:.0f} га")
     log(f"  РИС (все три условия):             {np.nansum(rice) * px_ha:.0f} га "
         f"({np.nanmean(rice) * 100:.2f} % района, район {width * height * px_ha:.0f} га)")
@@ -369,6 +396,16 @@ def main() -> None:
         f"тайлы {best['tiles']} | {abs(dist_km):.1f} км {'севернее' if dist_km > 0 else 'южнее'} "
         f"ст. Полтавской")
 
+    # Даты, которые обязан взять fetch_sentinel: чтобы проверка риса и сегментация
+    # считались по одной и той же съёмке, а не по двум разным случайным сценам.
+    flood_best = max((u for u in used if u["date"] in clean_dates),
+                     key=lambda u: u["flood_green_pct"], default=used[0])
+    veg_best = max(veg_used, key=lambda u: u["ndvi_mean"])
+    key_dates = {"flood": flood_best["date"], "veg": veg_best["date"],
+                 "dry": autumn[-1][0] if autumn else None}
+    log(f"ключевые даты: затопление {key_dates['flood']} (после {rain_before(key_dates['flood'], rain):.1f} мм "
+        f"осадков), полог {key_dates['veg']}, сброс {key_dates['dry']}")
+
     aoi = {
         "name": "Рисовый массив, Красноармейский район, Краснодарский край",
         "lat": clat, "lon": clon, "bbox": bbox, "utm_epsg": 32637,
@@ -391,7 +428,9 @@ def main() -> None:
             "flood_window": [FLOOD_START, FLOOD_END],
             "autumn": [AUTUMN_START, AUTUMN_END],
         },
+        "key_dates": key_dates,
         "flood_dates": [u["date"] for u in used],
+        "veg_dates": veg_used,
         "slots": {u["date"]: {"scene": u["scene"], "cloud_pct": u["cloud_pct"],
                               "flood_green_pct": u["flood_green_pct"], "ndvi_mean": u["ndvi_mean"]}
                   for u in used},
