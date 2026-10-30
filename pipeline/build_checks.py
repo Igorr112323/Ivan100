@@ -305,6 +305,7 @@ def main() -> None:
             "method": "NDWI > 0 -> морфологическая очистка -> водораздел по карте расстояний -> векторизация",
             "dem": DEM_SOURCE,
             "aoi": {
+                "name": AOI["name"],
                 "bbox": AOI["bbox"],
                 "lat": round((AOI["bbox"][1] + AOI["bbox"][3]) / 2, 4),
                 "lon": round((AOI["bbox"][0] + AOI["bbox"][2]) / 2, 4),
