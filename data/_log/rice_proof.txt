@@ -1,34 +1,39 @@
-[23:27:42] полигон [38.1088, 45.39014, 38.2588, 45.49414], сетка 1172 x 1150, чеков 127
-[23:27:42] май: 2025-05-22 | сцен 9 | тайлы ['MGRS-37TDL'] | облака 5.88 %
-[23:27:47]     годных пикселей 99.0 % | NDWI > 0 у 7.4 % | NDVI средний +0.396
-[23:27:47] июнь: 2025-06-08 | сцен 10 | тайлы ['MGRS-37TDL'] | облака 0.92 %
-[23:27:51]     годных пикселей 99.0 % | NDWI > 0 у 7.2 % | NDVI средний +0.478
-[23:27:51] июль: 2025-07-28 | сцен 11 | тайлы ['MGRS-37TDL'] | облака 0.08 %
-[23:27:55]     годных пикселей 99.0 % | NDWI > 0 у 0.6 % | NDVI средний +0.651
-[23:27:55] сентябрь: 2025-09-24 | сцен 14 | тайлы ['MGRS-37TDL'] | облака 0.23 %
-[23:27:58]     годных пикселей 99.0 % | NDWI > 0 у 0.5 % | NDVI средний +0.368
-[23:28:00] 
-[23:28:00] === проверка критерия риса по всем контурам ===
-[23:28:00]   контуров проверено: 127
-[23:28:00]   прошло все три условия: 7 (6 %)
-[23:28:00]   доля пикселей с водой в июне (2025-06-08): медиана 0 %, 10-й процентиль 0 %, 90-й 28 %
-[23:28:00]   NDVI в июле (2025-07-28): медиана 0.88, 10-й процентиль 0.85
-[23:28:00]   для сравнения, доля воды в мае (2025-05-22): медиана 5 %
-[23:28:00]   корзины по доле воды в июне:
-[23:28:00]       0.. 10 %:  102 чеков
-[23:28:00]      10.. 25 %:   11 чеков
-[23:28:00]      25.. 50 %:    7 чеков
-[23:28:00]      50.. 75 %:    6 чеков
-[23:28:00]      75..101 %:    1 чеков
-[23:28:01]   чек 65: вода в июне 0.0 % | NDVI июля 0.862 | NDWI сентября -0.575 | НЕ РИС
-[23:28:01]   чек 93: вода в июне 0.0 % | NDVI июля 0.909 | NDWI сентября -0.505 | НЕ РИС
-[23:28:01]   чек 38: вода в июне 0.0 % | NDVI июля 0.894 | NDWI сентября -0.634 | НЕ РИС
-[23:28:01]   чек 111: вода в июне 8.4 % | NDVI июля 0.898 | NDWI сентября -0.513 | НЕ РИС
-[23:28:02]   чек 18: вода в июне 0.0 % | NDVI июля 0.917 | NDWI сентября -0.688 | НЕ РИС
-[23:28:02]   чек 76: вода в июне 0.3 % | NDVI июля 0.88 | NDWI сентября -0.548 | НЕ РИС
-[23:28:02]   чек 9: вода в июне 0.0 % | NDVI июля 0.879 | NDWI сентября -0.68 | НЕ РИС
-[23:28:02]   чек 51: вода в июне 5.1 % | NDVI июля 0.866 | NDWI сентября -0.603 | НЕ РИС
-[23:28:03]   чек 84: вода в июне 0.0 % | NDVI июля 0.877 | NDWI сентября -0.515 | НЕ РИС
-[23:28:03]   чек 86: вода в июне 0.2 % | NDVI июля 0.897 | NDWI сентября -0.455 | НЕ РИС
-[23:28:03] записано data/rice_proof.json (35 КБ)
-[23:28:03] отчёт: data/verify/proof_report.md
+[23:48:33] полигон [38.28302, 45.31405, 38.43302, 45.41805], сетка 1173 x 1150, чеков 11
+[23:48:33] май: 2025-05-22 | сцен 9 | тайлы ['MGRS-37TDL'] | облака 5.88 %
+[23:48:36]     годных пикселей 99.2 % | NDWI > 0 у 7.0 % | NDVI средний +0.496
+[23:48:36] июнь: 2025-06-08 | сцен 10 | тайлы ['MGRS-37TDL'] | облака 0.92 %
+[23:48:39]     годных пикселей 99.2 % | NDWI > 0 у 8.2 % | NDVI средний +0.505
+[23:48:39] июль: 2025-07-28 | сцен 11 | тайлы ['MGRS-37TDL'] | облака 0.08 %
+[23:48:42]     годных пикселей 99.2 % | NDWI > 0 у 2.0 % | NDVI средний +0.559
+[23:48:42] сентябрь: 2025-09-24 | сцен 14 | тайлы ['MGRS-37TDL'] | облака 0.23 %
+[23:48:44]     годных пикселей 99.2 % | NDWI > 0 у 1.2 % | NDVI средний +0.352
+[23:48:44] 
+[23:48:44] === проверка критерия риса по всем контурам ===
+[23:48:44]   контуров проверено: 0
+[23:48:44]   прошло все три условия: 0 (0 %)
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/core/fromnumeric.py:3504: RuntimeWarning: Mean of empty slice.
+  return _methods._mean(a, axis=axis, dtype=dtype,
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/core/_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+Traceback (most recent call last):
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/rice_proof.py", line 293, in <module>
+    main()
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/rice_proof.py", line 160, in main
+    f"10-й процентиль {np.percentile(wj, 10):.0f} %, 90-й {np.percentile(wj, 90):.0f} %")
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 4283, in percentile
+    return _quantile_unchecked(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 4555, in _quantile_unchecked
+    return _ureduce(a,
+           ^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 3823, in _ureduce
+    r = func(a, **kwargs)
+        ^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 4722, in _quantile_ureduce_func
+    result = _quantile(arr,
+             ^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 4831, in _quantile
+    slices_having_nans = np.isnan(arr[-1, ...])
+                                  ~~~^^^^^^^^^
+IndexError: index -1 is out of bounds for axis 0 with size 0
