@@ -17,7 +17,7 @@ on:
       years:
         description: "Годы метеоряда ERA5 (через запятую)"
         required: false
-        default: "2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025"
+        default: "2020,2024,2025"
       steps:
         description: "Что выполнить: all | era5 | sentinel | checks"
         required: false
@@ -47,12 +47,21 @@ jobs:
       - name: Метеоряд ERA5
         if: ${{ (github.event.inputs.steps || 'all') == 'all' || github.event.inputs.steps == 'era5' }}
         working-directory: pipeline
-        run: python fetch_era5.py --years "${{ github.event.inputs.years || '2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025' }}"
+        run: python fetch_era5.py --years "${{ github.event.inputs.years || '2020,2024,2025' }}"
 
       - name: Снимки Sentinel-2
         if: ${{ (github.event.inputs.steps || 'all') == 'all' || github.event.inputs.steps == 'sentinel' }}
         working-directory: pipeline
         run: python fetch_sentinel.py
+
+      - name: Фиксация метеоряда
+        run: |
+          git config user.name "akvachek-pipeline"
+          git config user.email "pipeline@akvachek.local"
+          git add -A data web/public/data
+          git diff --cached --quiet || git commit -m "data: метеоряд ERA5 [skip ci]"
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
+          git push origin HEAD:"${GITHUB_REF_NAME}" || true
 
       - name: Контуры и характеристики чеков
         if: ${{ (github.event.inputs.steps || 'all') == 'all' || github.event.inputs.steps == 'checks' }}

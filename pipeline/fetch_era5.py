@@ -38,7 +38,7 @@ HOURLY = [
 HEADER = ["date", "tmin", "tmax", "tmean", "rh_mean", "td_mean", "u2", "rs", "precip", "et0_ref", "pressure"]
 
 
-def fetch_window(start: str, end: str, retries: int = 4) -> dict:
+def fetch_window(start: str, end: str, retries: int = 3) -> dict:
     params = {
         "latitude": AOI["lat"],
         "longitude": AOI["lon"],
@@ -51,13 +51,13 @@ def fetch_window(start: str, end: str, retries: int = 4) -> dict:
     last_err = None
     for attempt in range(retries):
         try:
-            r = requests.get(API, params=params, timeout=180)
+            r = requests.get(API, params=params, timeout=90)
             if r.status_code == 200:
                 return r.json()
             last_err = f"HTTP {r.status_code}: {r.text[:200]}"
         except Exception as exc:  # noqa: BLE001
             last_err = repr(exc)
-        sleep = 6 * (attempt + 1)
+        sleep = 10 * (attempt + 1)
         log(f"повтор через {sleep} с ({last_err})")
         time.sleep(sleep)
     die(f"источник ERA5 не отвечает для {start}..{end}: {last_err}")
@@ -117,19 +117,12 @@ def aggregate(payload: dict) -> list[dict]:
 
 
 def year_rows(year: int) -> list[dict]:
-    """Год запрашиваем помесячно: так устойчивее к лимитам источника."""
-    rows: list[dict] = []
-    start_month, end_month = int(SEASON_START_MD[:2]), int(SEASON_END_MD[:2])
-    for month in range(start_month, end_month + 1):
-        m = f"{month:02d}"
-        last_day = {"05": 31, "06": 30, "07": 31, "08": 31, "09": 30}[m]
-        start = f"{year}-{m}-01"
-        end = f"{year}-{m}-{last_day:02d}"
-        log(f"ERA5 {start} .. {end}")
-        payload = fetch_window(start, end)
-        chunk = aggregate(payload)
-        rows.extend(chunk)
-        time.sleep(1.5)
+    """Сезон запрашиваем одним обращением: так быстрее и меньше нагрузка на источник."""
+    start = f"{year}-{SEASON_START_MD}"
+    last_day = {"05": 31, "06": 30, "07": 31, "08": 31, "09": 30}[SEASON_END_MD[:2]]
+    end = f"{year}-{SEASON_END_MD[:2]}-{last_day:02d}"
+    log(f"ERA5 {start} .. {end}")
+    rows = aggregate(fetch_window(start, end))
     if not rows:
         die(f"ERA5: пустой ответ за {year} год")
     return rows
