@@ -87,50 +87,50 @@
    "id": "S2C_37TCL_20250522_0_L2A",
    "label": "май–начало июня: всходы, затопление",
    "cloud_cover_pct": 4.021,
-   "valid_pct": 98.65,
-   "ndvi_mean": 0.296,
-   "ndwi_mean": -0.2101,
-   "water_pct": 35.14
+   "valid_pct": 88.6,
+   "ndvi_mean": 0.3593,
+   "ndwi_mean": -0.2905,
+   "water_pct": 26.68
   },
   {
    "date": "2025-07-10",
    "id": "S2A_37TDL_20250710_0_L2A",
    "label": "июнь–начало июля: кущение, пик затопления",
    "cloud_cover_pct": 0.113,
-   "valid_pct": 74.45,
-   "ndvi_mean": 0.3679,
-   "ndwi_mean": -0.223,
-   "water_pct": 37.94
+   "valid_pct": 61.87,
+   "ndvi_mean": 0.487,
+   "ndwi_mean": -0.3943,
+   "water_pct": 18.23
   },
   {
    "date": "2025-07-28",
    "id": "S2C_37TDL_20250728_0_L2A",
    "label": "июль: выметывание",
    "cloud_cover_pct": 0.082,
-   "valid_pct": 74.45,
-   "ndvi_mean": 0.4119,
-   "ndwi_mean": -0.2821,
-   "water_pct": 37.9
+   "valid_pct": 61.87,
+   "ndvi_mean": 0.4955,
+   "ndwi_mean": -0.4179,
+   "water_pct": 18.04
   },
   {
    "date": "2025-08-19",
    "id": "S2A_37TDL_20250819_0_L2A",
    "label": "август: цветение, налив зерна",
    "cloud_cover_pct": 0.104,
-   "valid_pct": 74.45,
-   "ndvi_mean": 0.3941,
-   "ndwi_mean": -0.2578,
-   "water_pct": 38.77
+   "valid_pct": 61.87,
+   "ndvi_mean": 0.4593,
+   "ndwi_mean": -0.3832,
+   "water_pct": 18.75
   },
   {
    "date": "2025-09-04",
    "id": "S2B_37TDL_20250904_0_L2A",
    "label": "сентябрь: созревание, сброс воды",
    "cloud_cover_pct": 0.513,
-   "valid_pct": 74.45,
-   "ndvi_mean": 0.3846,
-   "ndwi_mean": -0.266,
-   "water_pct": 38.64
+   "valid_pct": 61.87,
+   "ndvi_mean": 0.4138,
+   "ndwi_mean": -0.3693,
+   "water_pct": 19.08
   }
  ]
 }

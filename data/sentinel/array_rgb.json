@@ -1,19 +1,19 @@
 {
  "image": "array_rgb.jpg",
- "width": 936,
- "height": 1106,
+ "width": 1872,
+ "height": 2211,
  "bounds": [
   [
-   45.45,
-   37.69
+   45.4,
+   37.63
   ],
   [
-   45.55,
-   37.81
+   45.6,
+   37.87
   ]
  ],
- "date": "2025-08-19",
- "scene": "S2A_37TDL_20250819_0_L2A",
+ "date": "2025-05-22",
+ "scene": "S2C_37TCL_20250522_0_L2A",
  "source": "Sentinel-2 L2A, Copernicus/ESA, COG на AWS Open Data",
  "attribution": "Содержит обработанные данные Copernicus Sentinel (2025)"
 }

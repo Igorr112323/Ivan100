@@ -1,10 +1,10 @@
 {
- "date": "2025-08-19",
- "id": "S2A_37TDL_20250819_0_L2A",
- "label": "август: цветение, налив зерна",
- "cloud_cover_pct": 0.104,
- "valid_pct": 74.45,
- "ndvi_mean": 0.3941,
- "ndwi_mean": -0.2578,
- "water_pct": 38.77
+ "date": "2025-05-22",
+ "id": "S2C_37TCL_20250522_0_L2A",
+ "label": "май–начало июня: всходы, затопление",
+ "cloud_cover_pct": 4.021,
+ "valid_pct": 88.6,
+ "ndvi_mean": 0.3593,
+ "ndwi_mean": -0.2905,
+ "water_pct": 26.68
 }
