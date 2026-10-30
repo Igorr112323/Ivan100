@@ -60,6 +60,8 @@ def et0_penman_monteith(
 ) -> float:
     """Суточная ET0, мм/сут. FAO-56, ур. 6."""
     p = pressure if pressure else atmospheric_pressure(z)
+    if p and p > 200.0:  # источник отдаёт давление в гПа, формула требует кПа
+        p = p / 10.0
     d = slope_vapour_pressure(tmean)
     g = psychrometric_constant(p)
 

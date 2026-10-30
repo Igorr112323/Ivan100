@@ -1,0 +1,852 @@
+/* =============================================================================
+   АКВАЧЕК — оформление «рабочего чертежа мелиоратора».
+   Правила: цвет означает состояние, волосяные линии, плотные таблицы вместо карточек,
+   один акцент на весь лист, асимметрия и bleed. Никаких градиентов, стекла и пилюль.
+   ============================================================================= */
+
+:root {
+  --paper: #efeae0;
+  --paper-2: #e6dfd2;
+  --paper-3: #f7f3ea;
+  --ink: #1b1f24;
+  --ink-2: #5c636b;
+  --ink-3: #8a8880;
+  --line: #c9c2b4;
+  --line-soft: #dbd4c5;
+  --line-hard: #a9a291;
+
+  --water: #2e6e7e;
+  --shallow: #6e9a8d;
+  --veg: #6c7a3a;
+  --ripe: #c8a24a;
+  --dry: #c14b2a;
+  --seal: #b4341f;
+
+  --font-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Courier New", monospace;
+  --font-display: "Unbounded Variable", "Golos Text", sans-serif;
+
+  --s1: 8px;
+  --s2: 12px;
+  --s3: 20px;
+  --s4: 32px;
+  --s5: 52px;
+  --s6: 84px;
+  --s7: 136px;
+
+  --pad: clamp(16px, 3.2vw, 48px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--seal);
+  color: var(--paper);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+}
+
+p {
+  margin: 0 0 var(--s2);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-hard);
+  padding-bottom: 1px;
+}
+
+a:hover {
+  border-bottom-color: var(--seal);
+  color: var(--seal);
+}
+
+/* --- типографические роли --------------------------------------------------- */
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+}
+
+.hang {
+  margin-left: -12px;
+}
+
+.lead {
+  font-size: 17px;
+  line-height: 1.44;
+  max-width: 62ch;
+}
+
+.small {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+.src {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+
+/* --- каркас листа ---------------------------------------------------------- */
+
+.app {
+  min-height: 100vh;
+  padding: clamp(10px, 2vw, 28px);
+}
+
+.sheet {
+  position: relative;
+  border: 1px solid var(--line-hard);
+  background: var(--paper);
+  padding: var(--pad) var(--pad) calc(var(--pad) + var(--s6));
+  min-height: calc(100vh - clamp(20px, 4vw, 56px));
+}
+
+/* угловые метки, как на подлиннике */
+.sheet::before,
+.sheet::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--line-hard);
+}
+.sheet::before {
+  top: 6px;
+  left: 6px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.sheet::after {
+  top: 6px;
+  right: 6px;
+  border-left: 0;
+  border-bottom: 0;
+}
+
+.bleed-right {
+  margin-right: calc(var(--pad) * -1);
+}
+
+.bleed-left {
+  margin-left: calc(var(--pad) * -1);
+}
+
+/* --- шапка и навигация ----------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s3);
+  border-bottom: 1px solid var(--line-hard);
+  padding-bottom: var(--s2);
+  margin-bottom: var(--s4);
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.wordmark span {
+  color: var(--seal);
+}
+
+.sheet-nav {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.sheet-nav button {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 4px 7px 5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.sheet-nav button:hover {
+  color: var(--ink);
+}
+
+.sheet-nav button[data-active="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--seal);
+}
+
+.bottomnav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+  background: var(--paper);
+  border-top: 1px solid var(--line-hard);
+  z-index: 900;
+}
+
+.bottomnav button {
+  flex: 1;
+  background: none;
+  border: 0;
+  border-right: 1px solid var(--line-soft);
+  padding: 11px 4px 12px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.bottomnav button:last-child {
+  border-right: 0;
+}
+
+.bottomnav button[data-active="true"] {
+  color: var(--seal);
+}
+
+/* --- штамп (основная надпись по ГОСТ 21.101, форма 3) ---------------------- */
+
+.stamp {
+  border: 1px solid var(--ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.15;
+  background: var(--paper);
+  width: 100%;
+  max-width: 430px;
+}
+
+.stamp-row {
+  display: flex;
+  border-bottom: 1px solid var(--ink);
+}
+
+.stamp-row:last-child {
+  border-bottom: 0;
+}
+
+.stamp-cell {
+  padding: 4px 6px;
+  border-right: 1px solid var(--ink);
+  flex: 1;
+  min-width: 0;
+}
+
+.stamp-cell:last-child {
+  border-right: 0;
+}
+
+.stamp-cell b {
+  display: block;
+  font-weight: 500;
+  font-size: 9px;
+  color: var(--ink-2);
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.stamp-title {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--ink);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stamp-foot {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+
+/* --- кнопки ---------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: none;
+}
+
+.btn:hover {
+  background: var(--seal);
+  border-color: var(--seal);
+  color: var(--paper);
+}
+
+.btn:active {
+  transform: translate(2px, 2px);
+}
+
+.btn[data-active="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.btn[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* --- таблицы: ведомость ---------------------------------------------------- */
+
+.vedomost {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vedomost th {
+  font-weight: 500;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  text-align: right;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ink);
+  white-space: nowrap;
+}
+
+.vedomost th:first-child,
+.vedomost td:first-child {
+  text-align: left;
+}
+
+.vedomost td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.vedomost tbody tr:hover {
+  background: var(--paper-2);
+}
+
+.vedomost tr[data-selected="true"] {
+  background: var(--paper-2);
+  box-shadow: inset 2px 0 0 var(--seal);
+}
+
+.vedomost tfoot td {
+  border-top: 3px double var(--ink);
+  border-bottom: 0;
+  font-weight: 600;
+  padding-top: 7px;
+}
+
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* --- плитки данных --------------------------------------------------------- */
+
+.readout {
+  border: 1px solid var(--line-hard);
+  padding: var(--s3);
+  background: var(--paper-3);
+}
+
+.readout + .readout {
+  border-top: 0;
+}
+
+.readout-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+
+.readout-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.readout-note {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  margin-top: 5px;
+  line-height: 1.35;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px var(--s2);
+  font-size: 13px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.kv span:last-child {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- эффект: главная плашка ------------------------------------------------ */
+
+.effect {
+  border: 1px solid var(--ink);
+  padding: var(--s3) var(--s3) var(--s2);
+  background: var(--paper);
+  position: relative;
+}
+
+.effect-value {
+  font-family: var(--font-display);
+  font-size: clamp(38px, 7.4vw, 68px);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.88;
+  display: block;
+}
+
+.effect-sub {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 8px;
+  max-width: 34ch;
+}
+
+.effect-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+
+.effect-grid > div {
+  padding: 10px 8px 4px 0;
+}
+
+.effect-grid > div + div {
+  border-left: 1px solid var(--line-soft);
+  padding-left: 12px;
+}
+
+/* --- карта ----------------------------------------------------------------- */
+
+.map {
+  width: 100%;
+  height: clamp(320px, 52vh, 620px);
+  background: var(--paper-2);
+  border: 1px solid var(--line-hard);
+  position: relative;
+}
+
+.map.leaflet-container {
+  font-family: var(--font-body);
+  background: var(--paper-2);
+}
+
+.map .leaflet-control-attribution {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  background: rgba(239, 234, 224, 0.86);
+  color: var(--ink-2);
+}
+
+.map .leaflet-bar a {
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.map-caption {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 500;
+  background: var(--paper);
+  border: 1px solid var(--line-hard);
+  border-left: 0;
+  border-bottom: 0;
+  padding: 5px 9px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+
+.map-legend {
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 500;
+  background: var(--paper);
+  border: 1px solid var(--line-hard);
+  border-right: 0;
+  border-top: 0;
+  padding: 8px 10px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-2);
+  padding: 2px 0;
+}
+
+.legend-swatch {
+  width: 15px;
+  height: 11px;
+  border: 1px solid rgba(27, 31, 36, 0.35);
+}
+
+/* --- сетки ----------------------------------------------------------------- */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: var(--s4);
+  align-items: start;
+}
+
+.split-even {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--s4);
+  align-items: start;
+}
+
+.stack-s > * + * {
+  margin-top: var(--s3);
+}
+
+.stack-m > * + * {
+  margin-top: var(--s4);
+}
+
+.section {
+  margin-top: var(--s6);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 5px;
+  margin-bottom: var(--s3);
+}
+
+.section-head h2 {
+  font-size: clamp(17px, 2.4vw, 23px);
+}
+
+/* --- чек-лист доказательств ------------------------------------------------ */
+
+.proof {
+  border: 1px solid var(--line-hard);
+}
+
+.proof-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 210px);
+  gap: var(--s2);
+  padding: 11px var(--s2);
+  border-bottom: 1px solid var(--line-soft);
+  align-items: baseline;
+}
+
+.proof-row:last-child {
+  border-bottom: 0;
+}
+
+.proof-no {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.proof-done {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--veg);
+}
+
+/* --- ползунки -------------------------------------------------------------- */
+
+.field {
+  border: 1px solid var(--line-hard);
+  padding: var(--s2) var(--s3) var(--s3);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--ink);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  background: var(--seal);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 1px;
+  background: var(--ink);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  background: var(--seal);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+}
+
+/* --- пометки «от руки» ----------------------------------------------------- */
+
+.note {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--dry);
+  letter-spacing: 0.01em;
+  transform: rotate(-0.8deg);
+  display: inline-block;
+  margin: 6px 0;
+}
+
+.strike {
+  position: relative;
+  display: inline-block;
+  color: var(--ink-3);
+}
+
+.strike::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  right: -3px;
+  top: 52%;
+  height: 1.5px;
+  background: var(--dry);
+  transform: rotate(-1.4deg);
+}
+
+/* --- состояние загрузки ---------------------------------------------------- */
+
+.pending {
+  border: 1px dashed var(--line-hard);
+  padding: var(--s3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* --- подвал ---------------------------------------------------------------- */
+
+.sheet-foot {
+  position: absolute;
+  left: var(--pad);
+  right: var(--pad);
+  bottom: var(--pad);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.foot-note {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  max-width: 46ch;
+  line-height: 1.5;
+}
+
+/* --- мобильная версия ------------------------------------------------------ */
+
+@media (max-width: 860px) {
+  body {
+    font-size: 15.5px;
+  }
+  .sheet {
+    padding: var(--pad) var(--pad) calc(var(--pad) + 96px);
+  }
+  .split,
+  .split-even {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s3);
+  }
+  .bottomnav {
+    display: flex;
+  }
+  .sheet-nav {
+    display: none;
+  }
+  .bleed-right,
+  .bleed-left {
+    margin-right: calc(var(--pad) * -1);
+    margin-left: calc(var(--pad) * -1);
+  }
+  .effect-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .effect-grid > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line-soft);
+    padding-left: 0;
+  }
+  .proof-row {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+  .proof-row > :last-child {
+    grid-column: 2;
+  }
+  .stamp {
+    max-width: 100%;
+  }
+  .sheet-foot {
+    bottom: 74px;
+  }
+  .map {
+    height: 46vh;
+  }
+}
+
+/* --- печать ведомости ------------------------------------------------------ */
+
+@media print {
+  :root {
+    --paper: #ffffff;
+  }
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .sheet {
+    border: 0;
+    padding: 0;
+    min-height: 0;
+  }
+  .vedomost {
+    font-size: 9.5pt;
+  }
+}
+
+.print-only {
+  display: none;
+}

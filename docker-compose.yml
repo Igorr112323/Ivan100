@@ -1,0 +1,16 @@
+services:
+  akvachek:
+    build: .
+    image: akvachek:latest
+    container_name: akvachek
+    restart: unless-stopped
+    ports:
+      - "8080:8000"
+    environment:
+      TZ: Europe/Moscow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/meta').status in (200,503) else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
