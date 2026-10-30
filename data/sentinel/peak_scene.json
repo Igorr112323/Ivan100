@@ -6,10 +6,10 @@
   "MGRS-37TDL"
  ],
  "cloud_cover_pct": 5.876,
- "valid_pct": 98.85,
- "ndvi_mean": 0.6079,
- "ndwi_mean": -0.5609,
- "water_pct": 2.94,
- "flood_pct": 4.75,
- "rice_veg_pct": 64.49
+ "valid_pct": 99.19,
+ "ndvi_mean": 0.4719,
+ "ndwi_mean": -0.4428,
+ "water_pct": 8.71,
+ "flood_pct": 17.8,
+ "rice_veg_pct": 44.66
 }

@@ -1,67 +1,6 @@
 {
  "seed": 20251031,
- "checks": [
-  {
-   "id": 9,
-   "image": "check_9.png",
-   "area_ha": 37.72,
-   "elev_m": 1.03,
-   "rice_frac": 0.998,
-   "dry_frac": 1.0,
-   "canal_m": 0.0,
-   "solidity": 0.955,
-   "rect_fill": 0.798,
-   "neighbors": 2
-  },
-  {
-   "id": 5,
-   "image": "check_5.png",
-   "area_ha": 18.86,
-   "elev_m": 1.73,
-   "rice_frac": 1.0,
-   "dry_frac": 1.0,
-   "canal_m": 0.0,
-   "solidity": 0.887,
-   "rect_fill": 0.787,
-   "neighbors": 3
-  },
-  {
-   "id": 3,
-   "image": "check_3.png",
-   "area_ha": 13.14,
-   "elev_m": 2.27,
-   "rice_frac": 1.0,
-   "dry_frac": 1.0,
-   "canal_m": 0.0,
-   "solidity": 0.827,
-   "rect_fill": 0.642,
-   "neighbors": 2
-  },
-  {
-   "id": 7,
-   "image": "check_7.png",
-   "area_ha": 23.39,
-   "elev_m": 0.91,
-   "rice_frac": 1.0,
-   "dry_frac": 1.0,
-   "canal_m": 0.0,
-   "solidity": 0.919,
-   "rect_fill": 0.695,
-   "neighbors": 1
-  },
-  {
-   "id": 8,
-   "image": "check_8.png",
-   "area_ha": 18.67,
-   "elev_m": 1.08,
-   "rice_frac": 0.999,
-   "dry_frac": 1.0,
-   "canal_m": 0.0,
-   "solidity": 0.925,
-   "rect_fill": 0.725,
-   "neighbors": 2
-  }
- ],
+ "checks": [],
  "rice_test": {
   "flood_date": "2025-05-22",
   "veg_date": "2025-07-28",

@@ -1,7 +1,8 @@
-[23:33:43] ERA5 2020-05-01 .. 2020-09-30
-[23:33:44] ERA5 2020: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2020.csv
-[23:33:44] ERA5 2024-05-01 .. 2024-09-30
-[23:33:44] ERA5 2024: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2024.csv
-[23:33:44] ERA5 2025-05-01 .. 2025-09-30
-[23:33:45] ERA5 2025: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2025.csv
-[23:33:45] записано data/weather/manifest.json (0 КБ)
+[23:48:39] ERA5 2020-05-01 .. 2020-09-30
+[23:50:09] повтор через 10 с (ReadTimeout(ReadTimeoutError("HTTPSConnectionPool(host='archive-api.open-meteo.com', port=443): Read timed out. (read timeout=90)")))
+[23:50:20] ERA5 2020: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2020.csv
+[23:50:20] ERA5 2024-05-01 .. 2024-09-30
+[23:50:21] ERA5 2024: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2024.csv
+[23:50:21] ERA5 2025-05-01 .. 2025-09-30
+[23:50:22] ERA5 2025: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2025.csv
+[23:50:22] записано data/weather/manifest.json (0 КБ)
