@@ -417,7 +417,11 @@ export function Sheet1({ ctx }: { ctx: Ctx }) {
                   label: "Оптимум АКВАЧЕК",
                   value: opt.yield_tons.optimal,
                   color: "#2e6e7e",
-                  note: `+${num(opt.gain_pct.vs_uniform, 2)} % к уравнительному`,
+                  note: `+${num(opt.gain_pct.vs_uniform, 2)} % к уравнительному, ` +
+                        `+${num(opt.gain_pct.vs_fallowing, 2)} % к выводу чеков` +
+                        (opt.fallowed_by_optimizer?.length
+                          ? `; выводит из севооборота ${opt.fallowed_by_optimizer.length} чеков`
+                          : "; все чеки остаются в севообороте"),
                 },
               ]}
             />

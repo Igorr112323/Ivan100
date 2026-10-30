@@ -56,6 +56,7 @@ export interface OptimizeResult {
   gain_pct: { vs_uniform: number; vs_fallowing: number; uniform_vs_full: number };
   water_m3: { full: number; uniform: number; optimal: number; limit: number; limit_shortage: number };
   water_saved_pct: number;
+  fallowed_by_optimizer: number[];
   fallowed_checks: number[];
   per_check: { id: number; gross_m3: number; deficit_pct: number; yield_frac: number }[];
   vedomost: {
