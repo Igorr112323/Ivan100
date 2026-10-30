@@ -34,21 +34,23 @@ from common import AOI, DATA, SENTINEL, WEB, grid_shape, log, write_json
 
 GEOD = Geod(ellps="WGS84")
 MIN_HA, MAX_HA = 8.0, 220.0
-DEM_BASE = "https://copernicus-dem-30m.s3.amazonaws.com"
+DEM_HOSTS = (
+    "https://copernicus-dem-30m.s3.amazonaws.com",
+    "https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com",
+)
 
 
 def dem_urls() -> list[str]:
     """Тайлы Copernicus DEM GLO-30, покрывающие полигон (1° x 1°, публичный набор AWS)."""
     w, s_, e, n = AOI["bbox"]
     urls = []
-    for lat in (int(s_ // 1), int(n // 1)):
-        for lon in (int(w // 1), int(e // 1)):
+    for lat in {int(s_ // 1), int(n // 1)}:
+        for lon in {int(w // 1), int(e // 1)}:
             ns = "N" if lat >= 0 else "S"
             ew = "E" if lon >= 0 else "W"
             name = f"Copernicus_DSM_COG_30_{ns}{abs(lat):02d}_00_{ew}{abs(lon):03d}_00_DEM"
-            url = f"{DEM_BASE}/{name}/{name}.tif"
-            if url not in urls:
-                urls.append(url)
+            for host in DEM_HOSTS:
+                urls.append(f"{host}/{name}/{name}.tif")
     return urls
 GDAL_ENV = dict(
     GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
@@ -65,14 +67,76 @@ def load_raster(path: Path) -> np.ndarray:
 
 
 def read_dem(width: int, height: int, transform) -> np.ndarray | None:
-    """Отметки рельефа из Copernicus DEM GLO-30 (публичный набор, без ключей)."""
+    """Отметки рельефа: сначала Copernicus DEM GLO-30, при отказе — публичные тайлы Terrarium."""
     for url in dem_urls():
         try:
-            return _read_dem_one(url, width, height, transform)
+            dem = _read_dem_one(url, width, height, transform)
+            if dem is not None and np.isfinite(dem).mean() > 0.5:
+                log(f"DEM: {url.rsplit('/', 2)[-2]}")
+                return dem
         except Exception as exc:  # noqa: BLE001
-            log(f"DEM {url.rsplit('/', 1)[-1]}: {type(exc).__name__}")
+            log(f"DEM {url.rsplit('/', 2)[-2]}: {type(exc).__name__}")
+    try:
+        dem = read_dem_terrarium(width, height, transform)
+        if dem is not None and np.isfinite(dem).mean() > 0.5:
+            log("DEM: AWS Terrain Tiles (terrarium), z=13")
+            return dem
+    except Exception as exc:  # noqa: BLE001
+        log(f"DEM terrarium: {type(exc).__name__}: {exc}"[:200])
     log("DEM недоступен: отметки не получены")
     return None
+
+
+def read_dem_terrarium(width: int, height: int, transform) -> np.ndarray:
+    """Резервный источник: публичные тайлы высот AWS Terrain Tiles, без ключей."""
+    import io
+    import math
+
+    import requests
+    from PIL import Image
+    from rasterio.transform import from_origin
+
+    z = 13
+    w, s_, e, n = AOI["bbox"]
+
+    def tile_xy(lat: float, lon: float) -> tuple[int, int]:
+        k = 2 ** z
+        x = int((lon + 180.0) / 360.0 * k)
+        lat_r = math.radians(lat)
+        y = int((1.0 - math.log(math.tan(lat_r) + 1.0 / math.cos(lat_r)) / math.pi) / 2.0 * k)
+        return x, y
+
+    x0, y1 = tile_xy(s_, w)
+    x1, y0 = tile_xy(n, e)
+    res = 40_075_016.686 / (256 * 2 ** z)
+    origin_x = -20_037_508.34 + x0 * 256 * res
+    origin_y = 20_037_508.34 - y0 * 256 * res
+    tile_transform = from_origin(origin_x, origin_y, res, res)
+
+    mosaic = np.zeros((256 * (y1 - y0 + 1), 256 * (x1 - x0 + 1)), dtype="float32")
+    log(f"тайлы рельефа: {x1 - x0 + 1} x {y1 - y0 + 1} на зуме {z}")
+    for ty in range(y0, y1 + 1):
+        for tx in range(x0, x1 + 1):
+            url = f"https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{tx}/{ty}.png"
+            r = requests.get(url, timeout=90)
+            r.raise_for_status()
+            im = np.asarray(Image.open(io.BytesIO(r.content))).astype("float32")
+            mosaic[(ty - y0) * 256:(ty - y0 + 1) * 256, (tx - x0) * 256:(tx - x0 + 1) * 256] = (
+                im[..., 0] * 256.0 + im[..., 1] + im[..., 2] / 256.0 - 32768.0
+            )
+
+    out = np.full((height, width), np.nan, dtype="float32")
+    reproject(
+        mosaic,
+        out,
+        src_transform=tile_transform,
+        src_crs=CRS.from_epsg(3857),
+        dst_transform=transform,
+        dst_crs=CRS.from_epsg(4326),
+        resampling=Resampling.bilinear,
+        src_nodata=-32768.0,
+    )
+    return out
 
 
 def _read_dem_one(url: str, width: int, height: int, transform) -> np.ndarray:
