@@ -1,0 +1,45 @@
+{
+ "source": "ERA5 (ECMWF) через Historical Weather API, агрегация почасовых значений в суточные",
+ "point": {
+  "lat": 45.35,
+  "lon": 38.2,
+  "name": "Красноармейский район, окрестности ст. Полтавской"
+ },
+ "timezone": "Europe/Moscow",
+ "variables": [
+  "date",
+  "tmin",
+  "tmax",
+  "tmean",
+  "rh_mean",
+  "td_mean",
+  "u2",
+  "rs",
+  "precip",
+  "et0_ref",
+  "pressure"
+ ],
+ "years": [
+  {
+   "year": 2020,
+   "days": 153,
+   "et0_sum_mm": 785.5,
+   "precip_sum_mm": 345.8,
+   "tmean_c": 22.45
+  },
+  {
+   "year": 2024,
+   "days": 153,
+   "et0_sum_mm": 889.0,
+   "precip_sum_mm": 196.7,
+   "tmean_c": 23.62
+  },
+  {
+   "year": 2025,
+   "days": 153,
+   "et0_sum_mm": 809.0,
+   "precip_sum_mm": 283.0,
+   "tmean_c": 22.21
+  }
+ ]
+}
