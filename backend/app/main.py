@@ -45,7 +45,7 @@ def base_percolation(checks: list, meta: dict, mean_elev: float) -> tuple[float,
     base_year = max(years_available())
     key = f"{len(checks)}|{round(mean_elev, 3)}|{base_year}"
     if key not in BASE_PERC:
-        lat = float((meta.get("aoi") or {}).get("lat", 45.35))
+        lat = float((meta.get("aoi") or {}).get("lat", 45.50))
         rows = engine.load_weather(base_year)
         season = engine.build_season(rows, lat=lat, elev=mean_elev)
         BASE_PERC[key] = engine.calibrate_percolation(checks, season)
@@ -57,7 +57,7 @@ def context(year: int):
     checks, meta = engine.load_checks()
     rows = engine.load_weather(year)
     mean_elev = sum(c.elev_m for c in checks) / max(len(checks), 1)
-    lat = float((meta.get("aoi") or {}).get("lat", 45.35))
+    lat = float((meta.get("aoi") or {}).get("lat", 45.50))
     season = engine.build_season(rows, lat=lat, elev=mean_elev)
     perc_base, base_year = base_percolation(checks, meta, mean_elev)
     return checks, meta, season, perc_base, rows
@@ -100,7 +100,7 @@ def api_meta():
             "name": "АКВАЧЕК",
             "full": "Система спутникового мониторинга и оптимизации водоподачи "
                     "на рисовых оросительных системах Краснодарского края",
-            "polygon": "Красноармейский район, окрестности ст. Полтавской (45,35° с.ш., 38,20° в.д.)",
+            "polygon": (meta.get("aoi") or {}).get("name", "Рисовый массив, Краснодарский край"),
         },
         "years": years,
         "checks": {

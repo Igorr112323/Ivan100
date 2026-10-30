@@ -30,7 +30,7 @@ export default function MapView({ imagery, checksGeo, cuts, selected, onSelect }
       minZoom: 11,
       maxZoom: 17,
     });
-    map.setView([45.35, 38.2], 13);
+    map.setView([45.50, 37.75], 13);
     mapRef.current = map;
     return () => {
       map.remove();
