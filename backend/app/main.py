@@ -259,11 +259,13 @@ def _optimize(year: int, deficit: float, ky: float, intermittent: bool):
         "fallowed_checks": fallow.get("fallowed", []),
         "per_check": lp["per_check"],
         "vedomost": _vedomost(checks, season, lp, etm, perc),
+        # база сравнения — практика вывода чеков. Уравнительное урезание в хозяйствах
+        # не применяется, и сравнивать с ним (а тем более показывать крупно) нельзя.
         "economics": engine.economics(
-            pct(lp["yield_tons"], uniform["yield_tons"]), sum(c.area_ha for c in checks)
-        ),
-        "economics_fallowing": engine.economics(
             pct(lp["yield_tons"], fallow["yield_tons"]), sum(c.area_ha for c in checks)
+        ),
+        "economics_naive": engine.economics(
+            pct(lp["yield_tons"], uniform["yield_tons"]), sum(c.area_ha for c in checks)
         ),
         "norms_m3_ha": {
             "mean": round(
@@ -364,8 +366,34 @@ def _montecarlo(year, deficit, ky, sigma, runs):
     return result
 
 
+@app.get("/api/grid")
+def api_grid():
+    """Предрасчитанная сетка лимитов: слайдер не ждёт решатель."""
+    path = DATA / "optimization" / "grid.json"
+    if not path.exists():
+        raise HTTPException(503, "сетка лимитов ещё не посчитана")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/content")
+def api_content():
+    """Числа интерфейса с источниками — единственный источник правды для вёрстки."""
+    path = DATA / "content.json"
+    if not path.exists():
+        raise HTTPException(503, "content.json ещё не собран")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/montecarlo")
+def api_montecarlo():
+    path = DATA / "optimization" / "montecarlo.json"
+    if not path.exists():
+        raise HTTPException(503, "стресс-тест ещё не посчитан")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 @app.get("/api/economics")
-def api_economics(gain_pct: float = Query(1.29, ge=0.0, le=20.0), price: float = Query(25.0, ge=5.0, le=80.0)):
+def api_economics(gain_pct: float = Query(..., ge=0.0, le=20.0), price: float = Query(25.0, ge=5.0, le=80.0)):
     years = years_available()
     checks, _m, _s, _p, _r = context(years[-1])
     return engine.economics(gain_pct, sum(c.area_ha for c in checks), price)
