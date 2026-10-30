@@ -1,0 +1,73 @@
+name: scan
+
+# Только разведка: перебор района по признаку риса. Отдельно от rice.yml, чтобы
+# поиск участка не перезапускал загрузку снимков и сегментацию.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "pipeline/find_rice.py"
+      - "pipeline/common.py"
+      - "pipeline/requirements.txt"
+      - ".github/workflows/scan.yml"
+      - "data/_trigger/scan.txt"
+  workflow_dispatch:
+    inputs:
+      summer:
+        description: "лето, например 2025-06-10,2025-08-12"
+        required: false
+        default: ""
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r pipeline/requirements.txt
+
+      - name: Разведка по признаку риса
+        working-directory: pipeline
+        run: |
+          mkdir -p ../data/_log
+          python find_rice.py 2>&1 | tee ../data/_log/find_rice.txt
+
+      - name: Фиксация полигона
+        if: always()
+        run: |
+          set +e
+          git config user.name "akvachek-pipeline"
+          git config user.email "pipeline@akvachek.local"
+          git add -A data
+          if git diff --cached --quiet; then
+            echo "нет изменений"
+          else
+            git commit -q -m "данные: полигон выбран по признаку риса [skip ci]" || echo "commit FAIL"
+            for i in 1 2 3; do
+              git pull --rebase origin "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+              sleep 5
+            done
+            git push origin HEAD:"$GITHUB_REF_NAME" && echo "push ok" || echo "push FAIL"
+          fi
+
+      - name: Журнал в задачу
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          {
+            echo "### Разведка, прогон $GITHUB_RUN_ID"
+            echo ""
+            echo '```'
+            tail -70 data/_log/find_rice.txt 2>/dev/null || echo "нет журнала"
+            echo '```'
+          } > /tmp/report.md
+          gh issue comment 1 --repo "$GITHUB_REPOSITORY" --body-file /tmp/report.md || echo "issue FAIL"

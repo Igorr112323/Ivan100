@@ -1,19 +1,27 @@
-"""Поиск настоящего рисового массива: Красноармейский район, окрестности ст. Полтавской.
+"""Поиск рисового массива в Красноармейском районе по главному признаку риса.
 
-Признак риса — на уровне пикселя, все три условия одновременно:
-  1) вода в мае-июне:  NDWI > 0  либо  LSWI > NDVI  (чек под слоем воды);
-  2) NDVI > 0,55 в июле-августе — сомкнутый полог риса;
-  3) NDWI <= 0 в сентябре — чек сброшен перед уборкой.
+Почему признак именно такой. Первая версия искала «весной вода + летом зелень +
+осенью сухо». Она отличила рис от пруда, но не отличила рис от кукурузы и сои:
+в конце мая их поле — влажная почва под редкими всходами (LSWI > NDVI), в июле
+оно зелёное (NDVI 0,8), в сентябре сухое (NDWI < 0). Проверка июньским снимком
+показала ровно это: воды в массиве 7,2 %, как в мае, — то есть культура не залита.
 
-Пруд удовлетворяет условию 1, но не проходит 2 и 3. Озимые проходят 3, но не 1.
-Поэтому совпадение всех трёх условий и есть рис, а не «вода, похожая на рис».
+Главный признак риса — вода под пологом летом. Ни одно поле другой культуры
+Кубани не стоит под слоем воды в июле. Поэтому:
 
-Скрипт делает грубый просмотр района (120 м/пиксель) на трёх датах сезона, считает
-маску риса, скользящим окном ищет участок с наибольшей площадью риса и записывает
-его границы в data/aoi.json — дальше по этому полигону работают fetch_sentinel.py
-и build_checks.py.
+  затопленным зелёным (flooded-green) считается пиксель, у которого на летней дате
+    (NDWI > 0  ИЛИ  LSWI >= NDVI - 0.05)  И  NDVI > 0.25;
+  рисом — пиксель, который был затопленным зелёным минимум на двух летних датах,
+    достиг NDVI > 0.55 на пике и сухой (NDWI <= 0) осенью.
 
-Выход: data/aoi.json, подробный журнал в stdout (уходит в data/_log/find_rice.txt).
+Требование двух дат отсекает дождь: однократная мочка после ливня у кукурузы
+бывает, месяц под водой — нет.
+
+Скрипт просматривает весь Красноармейский район на сетке 60 м по всем летним
+сценам сезона, считает маску риса и скользящим окном ищет участок с наибольшей
+площадью риса. Район не меняется. Участок выбирается только по признаку.
+
+Выход: data/aoi.json, журнал в data/_log/find_rice.txt
 """
 from __future__ import annotations
 
@@ -45,28 +53,24 @@ GDAL_ENV = dict(
     AWS_NO_SIGN_REQUEST="YES",
 )
 
-# Область поиска: Красноармейский район Краснодарского края, окрестности ст. Полтавской
-# (45.373 с.ш., 38.172 в.д.). Рамка ~39 x 36 км лежит внутри границ района.
+# Район зафиксирован: Красноармейский, Краснодарский край, окрестности ст. Полтавской.
 POLTAVSKAYA = (45.3733, 38.1725)
-SEARCH_BBOX = [37.920, 45.210, 38.420, 45.530]  # minx, miny, maxx, maxy
-COARSE_M = 60.0   # шаг грубой сетки просмотра (чек ~500 м — это 8 пикселей)
-AOI_HALF_LON = 0.0750  # ±5.87 км по долготе
-AOI_HALF_LAT = 0.0520  # ±5.75 км по широте  => окно ~11.7 x 11.5 км, ~13 500 га
+SEARCH_BBOX = [37.900, 45.180, 38.480, 45.570]  # minx, miny, maxx, maxy — внутри границ района
+COARSE_M = 60.0
+AOI_HALF_LON = 0.0750  # ±5.87 км
+AOI_HALF_LAT = 0.0520  # ±5.75 км  => окно ~11.7 x 11.5 км
 
-# Три окна сезона: затопление, пик вегетации, сброс воды
-SLOTS = [
-    ("flood", "2025-05-01", "2025-06-25"),
-    ("veg", "2025-07-20", "2025-08-25"),
-    ("dry", "2025-09-12", "2025-10-15"),
-]
-# На дату смотрит не облачность, а сам признак: для затопления — максимум воды,
-# для полога — максимум сомкнутой зелени, для сброса — максимум сухой поверхности.
-CANDIDATES_PER_SLOT = 6
-
-MAX_TILES = 4
-CLOUD_MAX = 0.35
+# Лето — окно затопления. Осень — контроль сброса воды.
+SUMMER_START, SUMMER_END = "2025-06-10", "2025-08-12"
+AUTUMN_START, AUTUMN_END = "2025-09-15", "2025-10-20"
+MAX_SUMMER_DATES = 10
+MAX_AUTUMN_DATES = 3
+CLOUD_MAX = 0.40
 NODATA_MAX = 60.0
-NDVI_VEG_MIN = 0.55
+FLOOD_GREEN_MIN = 2   # минимум летних дат «под водой и зелёный»
+NDVI_GREEN_MIN = 0.25
+NDVI_PEAK_MIN = 0.55
+MAX_TILES = 3
 
 
 def stac_search(start: str, end: str, limit: int = 80) -> list[dict]:
@@ -90,25 +94,17 @@ def tile_of(f: dict) -> str:
     return f.get("properties", {}).get("grid:code") or f["id"].split("_")[1]
 
 
-def candidate_dates(features: list[dict], limit: int = CANDIDATES_PER_SLOT) -> list[tuple[str, list[dict]]]:
-    """Кандидаты на дату окна: по одной группе сцен на сутки, сшивка тайлов внутри суток.
-
-    Дату выбирает не облачность, а сам признак окна (см. main), поэтому кандидатов
-    несколько и все они просматриваются на грубой сетке.
-    """
+def group_by_date(features: list[dict], limit: int) -> list[tuple[str, list[dict]]]:
+    """Сцены по суткам, внутри суток — лучшая сцена каждого тайла."""
     by_date: dict[str, list[dict]] = {}
     for f in features:
         p = f.get("properties", {})
-        cloud = p.get("eo:cloud_cover")
-        nodata = p.get("s2:nodata_pixel_percentage")
-        if cloud is None or nodata is None:
+        cloud, nodata = p.get("eo:cloud_cover"), p.get("s2:nodata_pixel_percentage")
+        if cloud is None or nodata is None or cloud > CLOUD_MAX or nodata > NODATA_MAX:
             continue
-        if cloud > CLOUD_MAX or nodata > NODATA_MAX:
-            continue
-        date = p["datetime"][:10]
-        by_date.setdefault(date, []).append(f)
+        by_date.setdefault(p["datetime"][:10], []).append(f)
     groups = []
-    for date, items in by_date.items():
+    for date, items in sorted(by_date.items()):
         by_tile: dict[str, dict] = {}
         for f in items:
             t = tile_of(f)
@@ -123,12 +119,6 @@ def candidate_dates(features: list[dict], limit: int = CANDIDATES_PER_SLOT) -> l
 
 def read_coarse(href: str, bbox: list[float], width: int, height: int, transform,
                 resampling: Resampling) -> np.ndarray:
-    """Оконное чтение канала COG на грубую сетку района поиска (EPSG:4326).
-
-    Читается не весь канал, а его окно с прореживанием до грубой сетки: сначала
-    считается окно в пикселях источника, затем аффинное преобразование этого окна
-    масштабируется под out_shape — так перепроецирование остаётся корректным.
-    """
     from rasterio.windows import from_bounds as win_from_bounds
     from pyproj import Transformer
 
@@ -139,33 +129,18 @@ def read_coarse(href: str, bbox: list[float], width: int, height: int, transform
         x1, y1 = to_src.transform(e, n)
         win = win_from_bounds(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1), src.transform)
         win_w, win_h = max(int(round(win.width)), 1), max(int(round(win.height)), 1)
-        arr = src.read(
-            1,
-            window=win,
-            out_shape=(height, width),
-            boundless=True,
-            fill_value=0,
-            resampling=resampling,
-        ).astype("float32")
+        arr = src.read(1, window=win, out_shape=(height, width), boundless=True,
+                       fill_value=0, resampling=resampling).astype("float32")
         decimated = src.window_transform(win) * Affine.scale(win_w / float(width), win_h / float(height))
         out = np.full((height, width), np.nan, dtype="float32")
-        reproject(
-            source=arr,
-            destination=out,
-            src_transform=decimated,
-            src_crs=src.crs,
-            dst_transform=transform,
-            dst_crs=CRS.from_epsg(4326),
-            resampling=resampling,
-            src_nodata=0,
-            dst_nodata=np.nan,
-        )
+        reproject(source=arr, destination=out, src_transform=decimated, src_crs=src.crs,
+                  dst_transform=transform, dst_crs=CRS.from_epsg(4326), resampling=resampling,
+                  src_nodata=0, dst_nodata=np.nan)
         return out
 
 
 def read_merged(items: list[dict], band: str, bbox: list[float], width: int, height: int,
                 transform, resampling: Resampling) -> np.ndarray:
-    """Канал, сшитый из сцен соседних тайлов: район поиска попадает на их стык."""
     out = np.full((height, width), np.nan, dtype="float32")
     for it in items:
         try:
@@ -177,8 +152,26 @@ def read_merged(items: list[dict], band: str, bbox: list[float], width: int, hei
     return out
 
 
+def indices(bands: dict) -> dict:
+    out: dict = {}
+    scl = bands.get("scl")
+    good = np.ones_like(bands["nir"], dtype=bool) if scl is None else \
+        ~(np.isin(scl, [0, 1, 3, 8, 9, 10]) | np.isnan(scl))
+    g, r, n, s16 = bands.get("green"), bands.get("red"), bands.get("nir"), bands.get("swir16")
+    with np.errstate(invalid="ignore", divide="ignore"):
+        if g is not None and n is not None:
+            out["ndwi"] = np.where((g > 0) & (n > 0), (g - n) / (g + n), np.nan)
+        if r is not None and n is not None:
+            out["ndvi"] = np.where((r > 0) & (n > 0), (n - r) / (n + r), np.nan)
+        if s16 is not None and n is not None:
+            out["lswi"] = np.where((n > 0) & (s16 > 0), (n - s16) / (n + s16), np.nan)
+    for key in list(out):
+        out[key] = np.where(good, out[key], np.nan)
+    out["good"] = good
+    return out
+
+
 def ascii_map(mask: np.ndarray, cols: int = 74) -> list[str]:
-    """Карта маски символами: журнал раннера всё равно текстовый."""
     h, w = mask.shape
     rows = max(1, int(round(cols * h / w * 0.5)))
     ys = np.linspace(0, h, rows + 1).astype(int)
@@ -194,10 +187,9 @@ def ascii_map(mask: np.ndarray, cols: int = 74) -> list[str]:
                 continue
             good = block[block >= 0]
             if good.size < block.size * 0.5:
-                line += "~"  # снимка нет: облака или стык тайлов
+                line += "~"
                 continue
-            v = float(good.mean())
-            line += shades[min(len(shades) - 1, int(v * len(shades) / 0.6))]
+            line += shades[min(len(shades) - 1, int(float(good.mean()) * len(shades) / 0.6))]
         lines.append(line)
     return lines
 
@@ -211,179 +203,131 @@ def main() -> None:
     height = int(round((n - s) / dlat))
     transform = from_bounds(w, s, e, n, width, height)
     log(f"район поиска: {w}..{e} в.д., {s}..{n} с.ш. — {width} x {height} пикселей по {COARSE_M:.0f} м")
-    log(f"окно массива: {2 * AOI_HALF_LON:.4f}° x {2 * AOI_HALF_LAT:.4f}° "
-        f"(~{2 * AOI_HALF_LON * 111320 * math.cos(math.radians(lat_c)) / 1000:.1f} x "
-        f"{2 * AOI_HALF_LAT * 110.574:.1f} км)")
+    log(f"окно массива ~{2 * AOI_HALF_LON * 111320 * math.cos(math.radians(lat_c)) / 1000:.1f} x "
+        f"{2 * AOI_HALF_LAT * 110.574:.1f} км")
 
-    bands_of = {
-        "flood": ("red", "green", "nir", "swir16", "scl"),
-        "veg": ("red", "nir", "scl"),
-        "dry": ("green", "nir", "scl"),
-    }
+    summer = group_by_date(stac_search(SUMMER_START, SUMMER_END), MAX_SUMMER_DATES)
+    autumn = group_by_date(stac_search(AUTUMN_START, AUTUMN_END), MAX_AUTUMN_DATES)
+    log(f"летних дат {len(summer)} ({SUMMER_START}..{SUMMER_END}), осенних {len(autumn)}")
+    if len(summer) < 3:
+        raise SystemExit("летних сцен мало — признак риса по двум датам не проверить")
 
-    def indices(bands: dict) -> dict:
-        out: dict = {}
-        scl = bands.get("scl")
-        if scl is None:
-            good = np.ones((height, width), dtype=bool)
-        else:
-            good = ~(np.isin(scl, [0, 1, 3, 8, 9, 10]) | np.isnan(scl))
-        g, r, n, s16 = bands.get("green"), bands.get("red"), bands.get("nir"), bands.get("swir16")
-        with np.errstate(invalid="ignore", divide="ignore"):
-            if g is not None and n is not None:
-                ok = (g > 0) & (n > 0)
-                out["ndwi"] = np.where(ok, (g - n) / (g + n), np.nan)
-            if r is not None and n is not None:
-                ok = (r > 0) & (n > 0)
-                out["ndvi"] = np.where(ok, (n - r) / (n + r), np.nan)
-            if s16 is not None and n is not None:
-                ok = (s16 > 0) & (n > 0)
-                out["lswi"] = np.where(ok, (n - s16) / (n + s16), np.nan)
-        good = good & np.ones((height, width), dtype=bool)
-        for key in list(out):
-            out[key] = np.where(good, out[key], np.nan)
-        out["good"] = good
-        return out
-
-    def metric(name: str, a: dict) -> np.ndarray:
-        if name == "flood":
-            return (a["ndwi"] > 0.0) | (a["lswi"] > a["ndvi"])
-        if name == "veg":
-            return a["ndvi"] > NDVI_VEG_MIN
-        return a["ndwi"] <= 0.0
-
-    per: dict[str, dict] = {}
-    flood_items: list[dict] = []
+    flood_green = np.zeros((height, width), dtype="int16")
+    ndvi_max = np.full((height, width), -1.0, dtype="float32")
+    good_any = np.zeros((height, width), dtype=bool)
+    used: list[dict] = []
 
     with Env(**GDAL_ENV):
-        for name, start_md, end_md in SLOTS:
-            feats = stac_search(start_md, end_md)
-            groups = candidate_dates(feats)
-            log(f"окно {name} ({start_md}..{end_md}): сцен {len(feats)}, дат-кандидатов {len(groups)}")
-            if not groups:
-                raise SystemExit(f"нет кондиционных сцен на окно {name} — поиск невозможен")
-            best: dict | None = None
-            for date, items in groups:
-                bands = {
-                    b: read_merged(items, b, SEARCH_BBOX, width, height, transform,
-                                   Resampling.nearest if b == "scl" else Resampling.bilinear)
-                    for b in bands_of[name]
-                }
-                arrs = indices(bands)
-                score = float(np.nanmean(metric(name, arrs) & arrs["good"]))
-                log(f"    дата {date} | тайлы {[tile_of(i) for i in items]} | облака "
-                    f"{min(cloud_of(i) for i in items) * 100:.1f} % | годных {arrs['good'].mean() * 100:.1f} % "
-                    f"| признак окна у {score * 100:.1f} % пикселей")
-                if best is None or score > best["score"]:
-                    best = {"score": score, "arrs": arrs, "date": date, "items": items}
-            assert best is not None
-            arrs = best["arrs"]
-            arrs["date"] = best["date"]
-            arrs["scene"] = best["items"][0]["id"]
-            arrs["tiles"] = [tile_of(i) for i in best["items"]]
-            arrs["cloud"] = round(min(cloud_of(i) for i in best["items"]) * 100, 2)
-            arrs["score"] = best["score"]
-            per[name] = arrs
-            if name == "flood":
-                flood_items = best["items"]
-            log(f"    выбрана дата {best['date']} ({best['items'][0]['id']}) — признак у "
-                f"{best['score'] * 100:.1f} % пикселей")
+        for date, items in summer:
+            bands = {b: read_merged(items, b, SEARCH_BBOX, width, height, transform,
+                                    Resampling.nearest if b == "scl" else Resampling.bilinear)
+                     for b in ("red", "green", "nir", "swir16", "scl")}
+            a = indices(bands)
+            ndvi, ndf = a["ndvi"], a["good"]
+            wet = (a["ndwi"] > 0.0) | (a["lswi"] >= ndvi - 0.05)
+            fg = (wet & (ndvi > NDVI_GREEN_MIN) & ndf)
+            flood_green += fg.astype("int16")
+            ndvi_max = np.where(np.isfinite(ndvi), np.maximum(ndvi_max, ndvi), ndvi_max)
+            good_any |= ndf
+            used.append({"date": date, "scene": items[0]["id"], "tiles": [tile_of(i) for i in items],
+                         "cloud_pct": round(min(cloud_of(i) for i in items) * 100, 2),
+                         "flood_green_pct": round(float(np.nanmean(fg)) * 100, 2),
+                         "ndvi_mean": round(float(np.nanmean(ndvi)), 3)})
+            log(f"  {date}: затоплено и зелено у {np.nanmean(fg) * 100:5.2f} % пикселей | "
+                f"NDWI > 0 у {np.nanmean(a['ndwi'] > 0) * 100:5.2f} % | NDVI средний {np.nanmean(ndvi):.3f}")
 
-    f, v, d = per["flood"], per["veg"], per["dry"]
-    common = f["good"] & v["good"] & d["good"]
-    log(f"общих кондиционных пикселей на трёх датах: {common.mean() * 100:.1f} %")
+        dry = None
+        for date, items in autumn:
+            bands = {b: read_merged(items, b, SEARCH_BBOX, width, height, transform,
+                                    Resampling.nearest if b == "scl" else Resampling.bilinear)
+                     for b in ("red", "green", "nir", "scl")}
+            a = indices(bands)
+            d = (a["ndwi"] <= 0.0) & a["good"]
+            dry = d if dry is None else (dry | d)
+            log(f"  {date} (осень): сухо у {np.nanmean(d) * 100:.1f} % пикселей")
+        if dry is None:
+            raise SystemExit("нет осенней сцены — сброс воды не проверить")
 
-    flooded = (f["ndwi"] > 0.0) | (f["lswi"] > f["ndvi"])
-    green_peak = v["ndvi"] > NDVI_VEG_MIN
-    drained = d["ndwi"] <= 0.0
-    rice = common & flooded & green_peak & drained
-
+    rice = (flood_green >= FLOOD_GREEN_MIN) & (ndvi_max > NDVI_PEAK_MIN) & dry
     px_ha = (COARSE_M * COARSE_M) / 10_000.0
-    total_valid = float(common.sum()) * px_ha
     log("")
-    log("=== признак риса по району поиска ===")
-    log(f"  затоплено в мае-июне ({f['date']}):     {np.nansum(common & flooded) * px_ha:9.0f} га "
-        f"({np.nansum(common & flooded) / max(common.sum(), 1) * 100:4.1f} % от годных)")
-    log(f"  сомкнутый полог в июле-августе ({v['date']}): {np.nansum(common & green_peak) * px_ha:9.0f} га "
-        f"({np.nansum(common & green_peak) / max(common.sum(), 1) * 100:4.1f} %)")
-    log(f"  сухо в сентябре ({d['date']}):         {np.nansum(common & drained) * px_ha:9.0f} га "
-        f"({np.nansum(common & drained) / max(common.sum(), 1) * 100:4.1f} %)")
-    log(f"  РИС (все три признака сразу):    {np.nansum(rice) * px_ha:9.0f} га "
-        f"({np.nansum(rice) / max(common.sum(), 1) * 100:4.1f} % от годных, {total_valid:.0f} га годных)")
+    log("=== признак риса по району ===")
+    log(f"  затоплено и зелено минимум на {FLOOD_GREEN_MIN} летних датах: "
+        f"{np.nansum(flood_green >= FLOOD_GREEN_MIN) * px_ha:.0f} га "
+        f"({np.nanmean(flood_green >= FLOOD_GREEN_MIN) * 100:.2f} % района)")
+    log(f"  плюс NDVI > {NDVI_PEAK_MIN} на пике: {np.nansum((ndvi_max > NDVI_PEAK_MIN)) * px_ha:.0f} га")
+    log(f"  плюс сухо осенью:                  {np.nansum(dry) * px_ha:.0f} га")
+    log(f"  РИС (все три условия):             {np.nansum(rice) * px_ha:.0f} га "
+        f"({np.nanmean(rice) * 100:.2f} % района, район {width * height * px_ha:.0f} га)")
     log("")
-    log("=== карта риса по району поиска (север сверху) ===")
-    log("  '~' — снимка нет (облака, стык тайлов); пробел — рис не подтверждён")
-    for line in ascii_map(np.where(common, rice.astype("float32"), -1.0)):
+    for line in ascii_map(np.where(good_any, rice.astype("float32"), -1.0)):
         log(f"|{line}|")
 
-    # Скользящее окно: ищем участок с наибольшей площадью риса
     ww = int(round(2 * AOI_HALF_LON / dlon))
     wh = int(round(2 * AOI_HALF_LAT / dlat))
-    rice_f = np.where(common, rice.astype("float32"), 0.0)
-    valid_f = common.astype("float32")
+    rice_f = rice.astype("float32")
+    cov_f = good_any.astype("float32")
     rice_sum = ndi.uniform_filter(rice_f, size=(wh, ww), mode="constant") * ww * wh
-    valid_sum = ndi.uniform_filter(valid_f, size=(wh, ww), mode="constant") * ww * wh
-    coverage = valid_sum / float(ww * wh)
-
-    # окна с покрытием ниже 95 % не годятся: там будут дырки в наблюдениях
+    cov_sum = ndi.uniform_filter(cov_f, size=(wh, ww), mode="constant") * ww * wh
+    coverage = cov_sum / float(ww * wh)
     score = np.where(coverage >= 0.95, rice_sum * px_ha, -1.0)
-    order = np.argsort(score.ravel())[::-1]
-    best: dict | None = None
+
+    best = None
     log("")
-    log("=== лучшие окна (площадь риса в окне, га) ===")
+    log("=== лучшие окна ===")
     shown = 0
-    for idx in order[:400]:
+    for idx in np.argsort(score.ravel())[::-1][:600]:
         cy, cx = np.unravel_index(idx, score.shape)
         if score[cy, cx] < 0:
             break
-        # край окна: центр должен отстоять от границы района на пол-окна
         if cy - wh // 2 < 0 or cy + wh // 2 >= height or cx - ww // 2 < 0 or cx + ww // 2 >= width:
             continue
         clon, clat = transform * (cx, cy)
         bbox = [clon - AOI_HALF_LON, clat - AOI_HALF_LAT, clon + AOI_HALF_LON, clat + AOI_HALF_LAT]
-        tiles = sorted({tile_of(it) for it in flood_items if _intersects(it, bbox)})
+        tiles = sorted({tile_of(it) for _, grp in summer for it in grp if _intersects(it, bbox)})
         shown += 1
-        if shown <= 15:
+        if shown <= 10:
             log(f"  {clat:.4f} с.ш. {clon:.4f} в.д. | рис {score[cy, cx]:7.0f} га | "
                 f"покрытие {coverage[cy, cx] * 100:5.1f} % | тайлов {len(tiles)}: {tiles}")
-        if best is None:
-            best = {"lat": round(clat, 5), "lon": round(clon, 5), "rice_ha": round(float(score[cy, cx]), 1),
+        if best is None or (len(tiles) < len(best["tiles"]) and score[cy, cx] >= 0.9 * best["rice_ha"]):
+            best = {"lat": round(clat, 5), "lon": round(clon, 5),
+                    "rice_ha": round(float(score[cy, cx]), 1),
                     "coverage": round(float(coverage[cy, cx]), 4), "tiles": tiles}
-        elif len(tiles) < len(best["tiles"]) and score[cy, cx] >= 0.90 * best["rice_ha"]:
-            # один тайл вместо двух — ряд наблюдений будет полным на всех датах
-            best = {"lat": round(clat, 5), "lon": round(clon, 5), "rice_ha": round(float(score[cy, cx]), 1),
-                    "coverage": round(float(coverage[cy, cx]), 4), "tiles": tiles}
-        if shown >= 400:
-            break
-
     if best is None:
-        raise SystemExit("ни одно окно не набрало годного покрытия — район не просматривается")
+        raise SystemExit("ни одно окно не набрало годного покрытия")
 
     clat, clon = best["lat"], best["lon"]
     bbox = [round(clon - AOI_HALF_LON, 5), round(clat - AOI_HALF_LAT, 5),
             round(clon + AOI_HALF_LON, 5), round(clat + AOI_HALF_LAT, 5)]
+    dist_km = (clat - POLTAVSKAYA[0]) * 110.574
     log("")
-    log(f"выбран участок: центр {clat} с.ш., {clon} в.д., тайлы {best['tiles']}, "
-        f"рис по грубой оценке {best['rice_ha']} га")
+    log(f"выбран участок: {clat} с.ш., {clon} в.д. | рис по грубой оценке {best['rice_ha']} га | "
+        f"тайлы {best['tiles']} | {abs(dist_km):.1f} км {'севернее' if dist_km > 0 else 'южнее'} "
+        f"ст. Полтавской")
 
+    summer_dates = [u["date"] for u in used]
     aoi = {
-        "name": "Рисовый массив, Красноармейский район, ст. Полтавская",
-        "lat": clat,
-        "lon": clon,
-        "bbox": bbox,
-        "utm_epsg": 32637,
+        "name": "Рисовый массив, Красноармейский район, Краснодарский край",
+        "lat": clat, "lon": clon, "bbox": bbox, "utm_epsg": 32637,
         "district": "Красноармейский район, Краснодарский край",
         "near": "ст. Полтавская",
-        "picked_by": "pipeline/find_rice.py: максимум площади риса по трём признакам "
-                     "(вода в мае-июне + NDVI > 0.55 в июле-августе + сухо в сентябре)",
-        "key_dates": {k: per[k]["date"] for k in ("flood", "veg", "dry")},
+        "picked_by": "pipeline/find_rice.py: максимум площади риса по признаку «вода под пологом "
+                     "летом минимум на двух датах + NDVI > 0.55 на пике + сухо осенью»",
         "coarse_rice_ha": best["rice_ha"],
         "coarse_coverage": best["coverage"],
         "tiles": best["tiles"],
         "search_bbox": SEARCH_BBOX,
-        "slots": {k: {"date": per[k]["date"], "scene": per[k]["scene"],
-                      "cloud_pct": per[k]["cloud"], "signal_pct": round(per[k]["score"] * 100, 2)}
-                  for k in per},
+        "criterion": {
+            "flood_green_min": FLOOD_GREEN_MIN,
+            "ndvi_green_min": NDVI_GREEN_MIN,
+            "ndvi_peak_min": NDVI_PEAK_MIN,
+            "summer": [SUMMER_START, SUMMER_END],
+            "autumn": [AUTUMN_START, AUTUMN_END],
+        },
+        "summer_dates": summer_dates,
+        "slots": {u["date"]: {"scene": u["scene"], "cloud_pct": u["cloud_pct"],
+                              "flood_green_pct": u["flood_green_pct"], "ndvi_mean": u["ndvi_mean"]}
+                  for u in used},
     }
     write_json(DATA / "aoi.json", aoi)
     (ROOT / "web" / "public" / "data").mkdir(parents=True, exist_ok=True)

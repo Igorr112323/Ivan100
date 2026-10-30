@@ -142,9 +142,8 @@ def main() -> None:
             row["wet_may_pct"] = round(float(np.nanmean(may["ndwi"][m] > 0.0)) * 100, 1)
             row["ndvi_may"] = round(float(np.nanmean(may["ndvi"][m])), 3)
             # влияние яркого пятна на NDVI мая
-            br = may["bright"][m]
-            thr = float(np.nanpercentile(br, BRIGHT_P)) if np.isfinite(br).any() else np.inf
-            hot = m & (br >= thr) & np.isfinite(br)
+            thr = float(np.nanpercentile(may["bright"], BRIGHT_P))
+            hot = m & (may["bright"] >= thr) & np.isfinite(may["bright"])
             row["bright_pct"] = round(float(hot.sum() / max(m.sum(), 1)) * 100, 1)
             cold = m & ~hot
             row["ndvi_may_no_bright"] = round(float(np.nanmean(may["ndvi"][cold])), 3) if cold.sum() > 20 else None

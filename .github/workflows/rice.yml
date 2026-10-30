@@ -4,7 +4,6 @@ on:
   push:
     branches: ["**"]
     paths:
-      - "pipeline/find_rice.py"
       - "pipeline/build_checks.py"
       - "pipeline/fetch_sentinel.py"
       - "pipeline/fetch_era5.py"
