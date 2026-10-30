@@ -14,6 +14,10 @@
  ],
  "date": "2025-05-22",
  "scene": "S2C_37TCL_20250522_0_L2A",
+ "tiles": [
+  "MGRS-37TCL",
+  "MGRS-37TDL"
+ ],
  "source": "Sentinel-2 L2A, Copernicus/ESA, COG на AWS Open Data",
  "attribution": "Содержит обработанные данные Copernicus Sentinel (2025)"
 }

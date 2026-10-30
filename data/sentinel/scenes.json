@@ -6,15 +6,26 @@
    "start": "2025-05-01",
    "end": "2025-06-05",
    "found": 44,
-   "best": {
-    "id": "S2C_37TCL_20250522_0_L2A",
-    "datetime": "2025-05-22T08:37:47.658000Z",
-    "platform": "sentinel-2c",
-    "cloud_cover": 4.021,
-    "nodata_pct": 0,
-    "water_pct": 74.15,
-    "vegetation_pct": 16.61
-   }
+   "tiles": [
+    "MGRS-37TCL",
+    "MGRS-37TDL"
+   ],
+   "scenes": [
+    {
+     "id": "S2C_37TCL_20250522_0_L2A",
+     "datetime": "2025-05-22T08:37:47.658000Z",
+     "platform": "sentinel-2c",
+     "cloud_cover": 4.021,
+     "nodata_pct": 0
+    },
+    {
+     "id": "S2C_37TDL_20250522_0_L2A",
+     "datetime": "2025-05-22T08:37:42.906000Z",
+     "platform": "sentinel-2c",
+     "cloud_cover": 5.876,
+     "nodata_pct": 16.79
+    }
+   ]
   },
   {
    "slot": "июнь–начало июля: кущение, пик затопления",
@@ -22,15 +33,18 @@
    "start": "2025-06-06",
    "end": "2025-07-10",
    "found": 42,
-   "best": {
-    "id": "S2A_37TDL_20250710_0_L2A",
-    "datetime": "2025-07-10T08:27:47.107000Z",
-    "platform": "sentinel-2a",
-    "cloud_cover": 0.113,
-    "nodata_pct": 0,
-    "water_pct": 8.37,
-    "vegetation_pct": 53.41
-   }
+   "tiles": [
+    "MGRS-37TDL"
+   ],
+   "scenes": [
+    {
+     "id": "S2A_37TDL_20250710_0_L2A",
+     "datetime": "2025-07-10T08:27:47.107000Z",
+     "platform": "sentinel-2a",
+     "cloud_cover": 0.113,
+     "nodata_pct": 0
+    }
+   ]
   },
   {
    "slot": "июль: выметывание",
@@ -38,15 +52,18 @@
    "start": "2025-07-11",
    "end": "2025-08-05",
    "found": 32,
-   "best": {
-    "id": "S2C_37TDL_20250728_0_L2A",
-    "datetime": "2025-07-28T08:27:50.131000Z",
-    "platform": "sentinel-2c",
-    "cloud_cover": 0.082,
-    "nodata_pct": 0,
-    "water_pct": 8.27,
-    "vegetation_pct": 46.41
-   }
+   "tiles": [
+    "MGRS-37TDL"
+   ],
+   "scenes": [
+    {
+     "id": "S2C_37TDL_20250728_0_L2A",
+     "datetime": "2025-07-28T08:27:50.131000Z",
+     "platform": "sentinel-2c",
+     "cloud_cover": 0.082,
+     "nodata_pct": 0
+    }
+   ]
   },
   {
    "slot": "август: цветение, налив зерна",
@@ -54,15 +71,26 @@
    "start": "2025-08-06",
    "end": "2025-08-31",
    "found": 28,
-   "best": {
-    "id": "S2A_37TDL_20250819_0_L2A",
-    "datetime": "2025-08-19T08:27:41.811000Z",
-    "platform": "sentinel-2a",
-    "cloud_cover": 0.104,
-    "nodata_pct": 0,
-    "water_pct": 8.42,
-    "vegetation_pct": 37.58
-   }
+   "tiles": [
+    "MGRS-37TDL",
+    "MGRS-37TCL"
+   ],
+   "scenes": [
+    {
+     "id": "S2A_37TDL_20250819_0_L2A",
+     "datetime": "2025-08-19T08:27:41.811000Z",
+     "platform": "sentinel-2a",
+     "cloud_cover": 0.104,
+     "nodata_pct": 0
+    },
+    {
+     "id": "S2A_37TCL_20250822_1_L2A",
+     "datetime": "2025-08-22T08:37:43.206000Z",
+     "platform": "sentinel-2a",
+     "cloud_cover": 1.319,
+     "nodata_pct": 0
+    }
+   ]
   },
   {
    "slot": "сентябрь: созревание, сброс воды",
@@ -70,15 +98,26 @@
    "start": "2025-09-01",
    "end": "2025-09-30",
    "found": 36,
-   "best": {
-    "id": "S2B_37TDL_20250904_0_L2A",
-    "datetime": "2025-09-04T08:37:23.438000Z",
-    "platform": "sentinel-2b",
-    "cloud_cover": 0.513,
-    "nodata_pct": 16.24,
-    "water_pct": 9.85,
-    "vegetation_pct": 36.71
-   }
+   "tiles": [
+    "MGRS-37TDL",
+    "MGRS-37TCL"
+   ],
+   "scenes": [
+    {
+     "id": "S2B_37TDL_20250904_0_L2A",
+     "datetime": "2025-09-04T08:37:23.438000Z",
+     "platform": "sentinel-2b",
+     "cloud_cover": 0.513,
+     "nodata_pct": 16.24
+    },
+    {
+     "id": "S2B_37TCL_20250924_2_L2A",
+     "datetime": "2025-09-24T08:37:29.064000Z",
+     "platform": "sentinel-2b",
+     "cloud_cover": 10.971,
+     "nodata_pct": 4.87
+    }
+   ]
   }
  ],
  "saved": [
@@ -86,51 +125,69 @@
    "date": "2025-05-22",
    "id": "S2C_37TCL_20250522_0_L2A",
    "label": "май–начало июня: всходы, затопление",
+   "tiles": [
+    "MGRS-37TCL",
+    "MGRS-37TDL"
+   ],
    "cloud_cover_pct": 4.021,
-   "valid_pct": 88.6,
-   "ndvi_mean": 0.3593,
-   "ndwi_mean": -0.2905,
-   "water_pct": 26.68
+   "valid_pct": 98.66,
+   "ndvi_mean": 0.362,
+   "ndwi_mean": -0.2983,
+   "water_pct": 24.12
   },
   {
    "date": "2025-07-10",
    "id": "S2A_37TDL_20250710_0_L2A",
    "label": "июнь–начало июля: кущение, пик затопления",
+   "tiles": [
+    "MGRS-37TDL"
+   ],
    "cloud_cover_pct": 0.113,
    "valid_pct": 61.87,
    "ndvi_mean": 0.487,
    "ndwi_mean": -0.3943,
-   "water_pct": 18.23
+   "water_pct": 11.28
   },
   {
    "date": "2025-07-28",
    "id": "S2C_37TDL_20250728_0_L2A",
    "label": "июль: выметывание",
+   "tiles": [
+    "MGRS-37TDL"
+   ],
    "cloud_cover_pct": 0.082,
    "valid_pct": 61.87,
    "ndvi_mean": 0.4955,
    "ndwi_mean": -0.4179,
-   "water_pct": 18.04
+   "water_pct": 11.16
   },
   {
    "date": "2025-08-19",
    "id": "S2A_37TDL_20250819_0_L2A",
    "label": "август: цветение, налив зерна",
+   "tiles": [
+    "MGRS-37TDL",
+    "MGRS-37TCL"
+   ],
    "cloud_cover_pct": 0.104,
-   "valid_pct": 61.87,
-   "ndvi_mean": 0.4593,
-   "ndwi_mean": -0.3832,
-   "water_pct": 18.75
+   "valid_pct": 98.66,
+   "ndvi_mean": 0.4637,
+   "ndwi_mean": -0.3792,
+   "water_pct": 21.67
   },
   {
    "date": "2025-09-04",
    "id": "S2B_37TDL_20250904_0_L2A",
    "label": "сентябрь: созревание, сброс воды",
+   "tiles": [
+    "MGRS-37TDL",
+    "MGRS-37TCL"
+   ],
    "cloud_cover_pct": 0.513,
-   "valid_pct": 61.87,
-   "ndvi_mean": 0.4138,
-   "ndwi_mean": -0.3693,
-   "water_pct": 19.08
+   "valid_pct": 98.66,
+   "ndvi_mean": 0.4035,
+   "ndwi_mean": -0.3602,
+   "water_pct": 21.97
   }
  ]
 }
