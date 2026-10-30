@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from pathlib import Path
 
 import numpy as np
@@ -95,13 +96,36 @@ def daily_rain(start: str, end: str, lat: float, lon: float) -> dict[str, float]
     и кукуруза, и пар. Если за пять суток до съёмки осадков практически не было,
     мокрый пиксель — это полив, а не погода.
     """
+    # Осадки берём из уже загруженного суточного ряда ERA5: источник тот же, а
+    # лимит запросов к API не расходуется. Разница осадков внутри района — единицы
+    # миллиметров, для признака «был дождь или нет» это несущественно.
+    local = DATA / "weather" / "era5_daily_2025.csv"
+    if local.exists():
+        import csv as _csv
+        rows = list(_csv.DictReader(local.read_text(encoding="utf-8").splitlines()))
+        out = {r["date"]: float(r["precip"] or 0.0) for r in rows}
+        if out:
+            log(f"осадки ERA5 взяты из {local.name}: {len(out)} суток")
+            return out
+    cache = DATA / "weather" / f"rain_{start}_{end}.json"
+    if cache.exists():
+        log(f"осадки взяты из кэша: {cache.name}")
+        return json.loads(cache.read_text(encoding="utf-8"))
     params = {"latitude": lat, "longitude": lon, "start_date": start, "end_date": end,
               "daily": "precipitation_sum", "timezone": "Europe/Moscow"}
-    r = requests.get(RAIN_API, params=params, timeout=120)
-    if r.status_code != 200:
-        raise SystemExit(f"OSCAR/ERA5: HTTP {r.status_code} {r.text[:200]}")
-    d = r.json()["daily"]
-    return {day: float(v or 0.0) for day, v in zip(d["time"], d["precipitation_sum"])}
+    last = "нет ответа"
+    for attempt in range(6):
+        r = requests.get(RAIN_API, params=params, timeout=120)
+        if r.status_code == 200:
+            d = r.json()["daily"]
+            out = {day: float(v or 0.0) for day, v in zip(d["time"], d["precipitation_sum"])}
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+            return out
+        last = f"HTTP {r.status_code}: {r.text[:120]}"
+        # у Open-Meteo лимит на час; ждём и пробуем снова — данные одни и те же
+        time.sleep(30 * (attempt + 1))
+    raise SystemExit(f"OSCAR/ERA5: {last}")
 
 
 def rain_before(date: str, rain: dict[str, float]) -> float:
