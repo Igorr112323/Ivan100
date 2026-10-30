@@ -348,7 +348,7 @@ def api_montecarlo(
     deficit: float = Query(0.15, ge=0.0, le=0.40),
     ky: float = Query(1.1, ge=0.6, le=1.6),
     sigma: float = Query(0.5, ge=0.05, le=6.0),
-    runs: int = Query(60, ge=10, le=300),
+    runs: int = Query(30, ge=10, le=300),
 ):
     key = f"mc:{year}:{deficit:.3f}:{ky:.3f}:{sigma:.3f}:{runs}"
     return cached(key, lambda: _montecarlo(year, deficit, ky, sigma, runs))
@@ -401,7 +401,11 @@ def warm() -> None:
         year = years[-1]
         api_meta()
         _optimize(year, 0.15, 1.1, False)
-        _montecarlo(year, 0.15, 1.1, 0.5, 40)
+        _scenarios(year, False)
+        for deficit in (0.10, 0.20, 0.30):
+            _optimize(year, deficit, 1.1, False)
+        for sigma in (0.25, 0.5, 1.0, 3.0):
+            _montecarlo(year, 0.15, 1.1, sigma, 30)
         print("[warm] кэш прогрет", flush=True)
     except Exception as exc:  # noqa: BLE001
         print(f"[warm] пропущено: {exc!r}", flush=True)
