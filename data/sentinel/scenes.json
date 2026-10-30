@@ -104,11 +104,11 @@
    ],
    "scenes": [
     {
-     "id": "S2B_37TDL_20250904_0_L2A",
-     "datetime": "2025-09-04T08:37:23.438000Z",
+     "id": "S2B_37TDL_20250924_1_L2A",
+     "datetime": "2025-09-24T08:37:26.537000Z",
      "platform": "sentinel-2b",
-     "cloud_cover": 0.513,
-     "nodata_pct": 16.24
+     "cloud_cover": 0.229,
+     "nodata_pct": 43.47
     },
     {
      "id": "S2B_37TCL_20250924_2_L2A",
@@ -176,18 +176,18 @@
    "water_pct": 21.67
   },
   {
-   "date": "2025-09-04",
-   "id": "S2B_37TDL_20250904_0_L2A",
+   "date": "2025-09-24",
+   "id": "S2B_37TDL_20250924_1_L2A",
    "label": "сентябрь: созревание, сброс воды",
    "tiles": [
     "MGRS-37TDL",
     "MGRS-37TCL"
    ],
-   "cloud_cover_pct": 0.513,
+   "cloud_cover_pct": 0.229,
    "valid_pct": 98.66,
-   "ndvi_mean": 0.4035,
-   "ndwi_mean": -0.3602,
-   "water_pct": 21.97
+   "ndvi_mean": 0.3402,
+   "ndwi_mean": -0.3242,
+   "water_pct": 21.67
   }
  ]
 }
