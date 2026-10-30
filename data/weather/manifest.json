@@ -1,8 +1,8 @@
 {
  "source": "ERA5 (ECMWF) через Historical Weather API, агрегация почасовых значений в суточные",
  "point": {
-  "lat": 45.40456,
-  "lon": 38.38794,
+  "lat": 45.51684,
+  "lon": 38.19,
   "name": "Рисовый массив, Красноармейский район, Краснодарский край"
  },
  "timezone": "Europe/Moscow",
@@ -23,23 +23,23 @@
   {
    "year": 2020,
    "days": 153,
-   "et0_sum_mm": 787.4,
-   "precip_sum_mm": 285.2,
-   "tmean_c": 22.42
+   "et0_sum_mm": 775.9,
+   "precip_sum_mm": 334.2,
+   "tmean_c": 22.3
   },
   {
    "year": 2024,
    "days": 153,
-   "et0_sum_mm": 905.5,
-   "precip_sum_mm": 181.1,
-   "tmean_c": 23.76
+   "et0_sum_mm": 904.8,
+   "precip_sum_mm": 133.7,
+   "tmean_c": 23.72
   },
   {
    "year": 2025,
    "days": 153,
-   "et0_sum_mm": 807.2,
-   "precip_sum_mm": 289.7,
-   "tmean_c": 22.07
+   "et0_sum_mm": 811.1,
+   "precip_sum_mm": 272.2,
+   "tmean_c": 22.11
   }
  ]
 }
