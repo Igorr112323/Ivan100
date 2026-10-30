@@ -9,5 +9,7 @@
  "valid_pct": 98.93,
  "ndvi_mean": 0.3962,
  "ndwi_mean": -0.3755,
- "water_pct": 7.43
+ "water_pct": 7.43,
+ "flood_pct": 27.25,
+ "rice_veg_pct": 32.29
 }
