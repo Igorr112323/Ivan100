@@ -1,7 +1,10 @@
 """Загрузка реальных снимков Sentinel-2 L2A (Copernicus/ESA) над рисовым массивом.
 
 Источник: STAC-каталог Earth Search v1 (AWS Open Data, публичные COG, без ключей).
-Для каждого выбранного сцены читается окно 10 м над полигоном и сохраняются:
+Полигон лежит на стыке двух тайлов MGRS, поэтому на каждую дату берутся сцены обоих
+тайлов и сшиваются: иначе часть чеков на части дат остаётся без наблюдений.
+
+Для каждой даты сохраняются:
   * ndvi_<дата>.tif, ndwi_<дата>.tif  — индексы на единой сетке 10 м в EPSG:4326;
   * valid_<дата>.tif                  — маска кондиционных пикселей (без облаков и теней по SCL);
   * array_rgb.jpg + привязка          — реальный цветной снимок массива для карты.
@@ -12,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -46,6 +50,7 @@ SCENE_SLOTS = [
     ("2025-08-06", "2025-08-31", "август: цветение, налив зерна"),
     ("2025-09-01", "2025-09-30", "сентябрь: созревание, сброс воды"),
 ]
+MAX_TILES = 2  # полигон перекрывают два тайла MGRS; больше не требуется
 
 
 def stac_search(start: str, end: str, limit: int = 60) -> list[dict]:
@@ -63,22 +68,30 @@ def stac_search(start: str, end: str, limit: int = 60) -> list[dict]:
     return r.json().get("features", [])
 
 
-def pick_scene(features: list[dict]) -> dict | None:
-    """Выбор лучшей сцены: минимум облачности, затем максимум кондиционных пикселей."""
-    good = []
+def cloud_of(f: dict) -> float:
+    return float(f.get("properties", {}).get("eo:cloud_cover") or 1.0)
+
+
+def tile_of(f: dict) -> str:
+    return f.get("properties", {}).get("grid:code") or f["id"].split("_")[1]
+
+
+def pick_scenes(features: list[dict]) -> list[dict]:
+    """Лучшая сцена каждого тайла MGRS: сначала минимум облачности, затем минимум пропусков."""
+    by_tile: dict[str, dict] = {}
     for f in features:
         p = f.get("properties", {})
-        cloud = p.get("eo:cloud_cover", 100.0)
-        nodata = p.get("s2:nodata_pixel_percentage", 100.0)
+        cloud = p.get("eo:cloud_cover")
+        nodata = p.get("s2:nodata_pixel_percentage")
         if cloud is None or nodata is None:
             continue
-        if cloud > 0.35 or nodata > 25.0:
+        if cloud > 0.35 or nodata > 40.0:
             continue
-        good.append((cloud, nodata, f))
-    if not good:
-        return None
-    good.sort(key=lambda t: (t[0], t[1]))
-    return good[0][2]
+        t = tile_of(f)
+        if t not in by_tile or (cloud, nodata) < (cloud_of(by_tile[t]),
+                                                  by_tile[t]["properties"].get("s2:nodata_pixel_percentage", 0)):
+            by_tile[t] = f
+    return sorted(by_tile.values(), key=cloud_of)[:MAX_TILES]
 
 
 def read_window(href: str, dst_width: int, dst_height: int, dst_transform, resampling: Resampling) -> np.ndarray:
@@ -110,17 +123,28 @@ def read_window(href: str, dst_width: int, dst_height: int, dst_transform, resam
     return out
 
 
+def read_merged(items: list[dict], band: str, width: int, height: int, transform,
+                resampling: Resampling) -> np.ndarray:
+    """Канал, сшитый из сцен соседних тайлов: полигон попадает на их стык."""
+    out = np.full((height, width), np.nan, dtype="float32")
+    for it in items:
+        arr = read_window(it["assets"][band]["href"], width, height, transform, resampling)
+        out = np.where(np.isfinite(out), out, arr)
+    return out
+
+
 def main() -> None:
     width, height, dst_transform = grid_shape()
     log(f"расчётная сетка: {width} x {height} пикселей, 10 м, EPSG:4326")
 
     catalogue: list[dict] = []
     saved: list[dict] = []
+    slot_scenes: dict[str, list[dict]] = {}
 
     with Env(**GDAL_ENV):
         for start, end, label in SCENE_SLOTS:
             features = stac_search(start, end)
-            scene = pick_scene(features)
+            items = pick_scenes(features)
             catalogue.append(
                 {
                     "slot": label,
@@ -128,42 +152,42 @@ def main() -> None:
                     "start": start,
                     "end": end,
                     "found": len(features),
-                    "best": (
+                    "tiles": [tile_of(i) for i in items],
+                    "scenes": [
                         {
-                            "id": scene["id"],
-                            "datetime": scene["properties"]["datetime"],
-                            "platform": scene["properties"].get("platform"),
-                            "cloud_cover": round(scene["properties"].get("eo:cloud_cover", 0) * 100, 3),
-                            "nodata_pct": round(scene["properties"].get("s2:nodata_pixel_percentage", 0), 2),
-                            "water_pct": round(scene["properties"].get("s2:water_percentage", 0), 2),
-                            "vegetation_pct": round(scene["properties"].get("s2:vegetation_percentage", 0), 2),
+                            "id": i["id"],
+                            "datetime": i["properties"]["datetime"],
+                            "platform": i["properties"].get("platform"),
+                            "cloud_cover": round(cloud_of(i) * 100, 3),
+                            "nodata_pct": round(i["properties"].get("s2:nodata_pixel_percentage", 0), 2),
                         }
-                        if scene
-                        else None
-                    ),
+                        for i in items
+                    ],
                 }
             )
-            if scene is None:
+            if not items:
                 log(f"{label}: кондиционной сцены нет")
                 continue
 
-            date = scene["properties"]["datetime"][:10]
-            assets = scene["assets"]
-            log(f"{label}: {scene['id']} ({date}, облачность "
-                f"{round(scene['properties'].get('eo:cloud_cover', 0) * 100, 2)} %)")
+            date = items[0]["properties"]["datetime"][:10]
+            log(f"{label}: {date}, тайлы {[tile_of(i) for i in items]}, "
+                f"облачность {[round(cloud_of(i) * 100, 2) for i in items]} %")
 
-            red = read_window(assets["red"]["href"], width, height, dst_transform, Resampling.bilinear)
-            green = read_window(assets["green"]["href"], width, height, dst_transform, Resampling.bilinear)
-            nir = read_window(assets["nir"]["href"], width, height, dst_transform, Resampling.bilinear)
-            scl = read_window(assets["scl"]["href"], width, height, dst_transform, Resampling.nearest)
+            red = read_merged(items, "red", width, height, dst_transform, Resampling.bilinear)
+            green = read_merged(items, "green", width, height, dst_transform, Resampling.bilinear)
+            nir = read_merged(items, "nir", width, height, dst_transform, Resampling.bilinear)
+
+            # SCL: 0 нет данных, 1 насыщенный/дефектный, 3 тень облака, 8/9 облако, 10 перистые
+            good = np.zeros((height, width), dtype=bool)
+            for it in items:
+                scl = read_window(it["assets"]["scl"]["href"], width, height, dst_transform, Resampling.nearest)
+                good |= ~(np.isin(scl, [0, 1, 3, 8, 9, 10]) | np.isnan(scl))
 
             with np.errstate(invalid="ignore", divide="ignore"):
                 ndvi = (nir - red) / (nir + red)
                 ndwi = (green - nir) / (green + nir)
 
-            # SCL: 0 нет данных, 1 насыщенный/дефектный, 3 тень облака, 8/9 облако, 10 перистые
-            bad = np.isin(scl, [0, 1, 3, 8, 9, 10]) | np.isnan(scl)
-            valid = (~bad & np.isfinite(ndvi)).astype("uint8")
+            valid = (good & np.isfinite(ndvi) & np.isfinite(ndwi)).astype("uint8")
             ndvi = np.where(valid == 1, ndvi, np.nan).astype("float32")
             ndwi = np.where(valid == 1, ndwi, np.nan).astype("float32")
 
@@ -179,12 +203,9 @@ def main() -> None:
                 "predictor": 3,
                 "nodata": float("nan"),
             }
-            for name, arr, dtype in (("ndvi", ndvi, "float32"), ("ndwi", ndwi, "float32")):
-                p = profile.copy()
-                p["dtype"] = dtype
-                path = SENTINEL / f"{name}_{date}.tif"
-                with rasterio.open(path, "w", **p) as dst:
-                    dst.write(arr.astype(dtype), 1)
+            for name, arr in (("ndvi", ndvi), ("ndwi", ndwi)):
+                with rasterio.open(SENTINEL / f"{name}_{date}.tif", "w", **profile) as dst:
+                    dst.write(arr, 1)
             p = profile.copy()
             p["dtype"] = "uint8"
             p["nodata"] = 0
@@ -192,19 +213,22 @@ def main() -> None:
             with rasterio.open(SENTINEL / f"valid_{date}.tif", "w", **p) as dst:
                 dst.write(valid, 1)
 
-            fin = np.isfinite(ndvi) & np.isfinite(ndwi)
+            slot_scenes[label] = items
             saved.append(
                 {
                     "date": date,
-                    "id": scene["id"],
+                    "id": items[0]["id"],
                     "label": label,
-                    "cloud_cover_pct": round(scene["properties"].get("eo:cloud_cover", 0) * 100, 3),
+                    "tiles": [tile_of(i) for i in items],
+                    "cloud_cover_pct": round(cloud_of(items[0]) * 100, 3),
                     "valid_pct": round(float(valid.mean()) * 100, 2),
-                    "ndvi_mean": round(float(np.nanmean(ndvi[fin])), 4) if fin.any() else None,
-                    "ndwi_mean": round(float(np.nanmean(ndwi[fin])), 4) if fin.any() else None,
-                    "water_pct": round(float(np.nanmean(ndwi[fin] > 0.0)) * 100, 2) if fin.any() else None,
+                    "ndvi_mean": round(float(np.nanmean(ndvi)), 4),
+                    "ndwi_mean": round(float(np.nanmean(ndwi)), 4),
+                    "water_pct": round(float(np.nanmean(ndwi > 0.0)) * 100, 2),
                 }
             )
+            log(f"  кондиционных пикселей {valid.mean() * 100:.1f} %, водное зеркало "
+                f"{np.nanmean(ndwi > 0.0) * 100:.1f} %")
 
     if not saved:
         die("ни одной кондиционной сцены Sentinel-2 не получено")
@@ -213,30 +237,25 @@ def main() -> None:
     best = max(saved, key=lambda s: (s["water_pct"] or 0))
     write_json(SENTINEL / "peak_scene.json", best)
     write_json(SENTINEL / "scenes.json", {"catalogue": catalogue, "saved": saved})
-
     log(f"пиковая сцена: {best['date']} (вода {best['water_pct']} %)")
 
     with Env(**GDAL_ENV):
-        from common import AOI as _AOI  # noqa: F401
-
-        # Цветное изображение собираем из сцены пика: перечитываем красный/зелёный/синий
-        slot = next(c for c in catalogue if c["slot"] == best["label"])
-        features = stac_search(slot["start"], slot["end"])
-        scene = next(f for f in features if f["id"] == best["id"])
-        blue = read_window(scene["assets"]["blue"]["href"], width, height, dst_transform, Resampling.bilinear)
-        red = read_window(scene["assets"]["red"]["href"], width, height, dst_transform, Resampling.bilinear)
-        green = read_window(scene["assets"]["green"]["href"], width, height, dst_transform, Resampling.bilinear)
+        items = slot_scenes[best["label"]]
+        blue = read_merged(items, "blue", width, height, dst_transform, Resampling.bilinear)
+        red = read_merged(items, "red", width, height, dst_transform, Resampling.bilinear)
+        green = read_merged(items, "green", width, height, dst_transform, Resampling.bilinear)
 
     stack = np.dstack([red, green, blue]).astype("float32")
-    lo, hi = np.nanpercentile(stack[np.isfinite(stack)], [2, 98])
+    finite = np.isfinite(stack).all(axis=2)
+    lo, hi = np.nanpercentile(stack[finite], [2, 98])
     rgb = np.clip((stack - lo) / max(hi - lo, 1e-6), 0, 1)
-    rgb = (rgb ** (1 / 1.35) * 255).astype("uint8")  # мягкая гамма-коррекция, как в полевых планшетах
-    rgb = np.where(np.isfinite(stack), rgb, 0).astype("uint8")
+    rgb = np.clip(rgb ** (1 / 1.35) * 255, 0, 255)  # мягкая гамма-коррекция, как в полевых планшетах
+    rgb = np.where(finite[..., None], rgb, 0).astype("uint8")
 
     img = Image.fromarray(rgb, mode="RGB")
-    out_dir = SENTINEL
-    img.save(out_dir / "array_rgb.jpg", quality=88, optimize=True)
+    img.save(SENTINEL / "array_rgb.jpg", quality=86, optimize=True)
     log(f"array_rgb.jpg: {img.size[0]}x{img.size[1]}")
+
     w, s, e, n = AOI["bbox"]
     write_json(
         SENTINEL / "array_rgb.json",
@@ -247,17 +266,15 @@ def main() -> None:
             "bounds": [[s, w], [n, e]],
             "date": best["date"],
             "scene": best["id"],
+            "tiles": best.get("tiles", []),
             "source": "Sentinel-2 L2A, Copernicus/ESA, COG на AWS Open Data",
             "attribution": "Содержит обработанные данные Copernicus Sentinel (2025)",
         },
     )
-    log(f"цветной снимок массива: {width}x{height}, {best['date']}")
 
     # Копия для фронтенда
     WEB.mkdir(parents=True, exist_ok=True)
-    import shutil
-
-    shutil.copy(out_dir / "array_rgb.jpg", WEB / "array_rgb.jpg")
+    shutil.copy(SENTINEL / "array_rgb.jpg", WEB / "array_rgb.jpg")
     shutil.copy(SENTINEL / "array_rgb.json", WEB / "array_rgb.json")
     log("снимок скопирован в web/public/data")
 
