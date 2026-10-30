@@ -5,6 +5,11 @@ name: fetch-data
 # скачиваются раннером GitHub и коммитятся в data/. Никаких синтетических значений.
 
 on:
+  push:
+    branches: ["**"]
+    paths:
+      - "pipeline/**"
+      - ".github/workflows/fetch-data.yml"
   workflow_dispatch:
     inputs:
       years:
