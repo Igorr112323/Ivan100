@@ -1,0 +1,67 @@
+name: fetch-data
+
+# Пайплайн добычи РЕАЛЬНЫХ данных проекта «АКВАЧЕК».
+# Запускается вручную: данные из открытых источников (Sentinel-2 / ERA5 / Copernicus DEM)
+# скачиваются раннером GitHub и коммитятся в data/. Никаких синтетических значений.
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "Годы метеоряда ERA5 (через запятую)"
+        required: false
+        default: "2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025"
+      steps:
+        description: "Какие шаги выполнить: all | era5 | sentinel | checks"
+        required: false
+        default: "all"
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
+
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Зависимости пайплайна
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r pipeline/requirements.txt
+
+      - name: Метеоряд ERA5
+        if: ${{ github.event.inputs.steps == 'all' || github.event.inputs.steps == 'era5' }}
+        working-directory: pipeline
+        run: python fetch_era5.py --years "${{ github.event.inputs.years }}"
+
+      - name: Снимки Sentinel-2
+        if: ${{ github.event.inputs.steps == 'all' || github.event.inputs.steps == 'sentinel' }}
+        working-directory: pipeline
+        run: python fetch_sentinel.py
+
+      - name: Контуры и характеристики чеков
+        if: ${{ github.event.inputs.steps == 'all' || github.event.inputs.steps == 'checks' }}
+        working-directory: pipeline
+        run: python build_checks.py
+
+      - name: Фиксация результатов
+        run: |
+          git config user.name "akvachek-pipeline"
+          git config user.email "pipeline@akvachek.local"
+          git add -A data web/public/data
+          if git diff --cached --quiet; then
+            echo "новых данных нет"
+          else
+            git commit -m "data: реальные данные Sentinel-2 / ERA5 / Copernicus DEM [skip ci]"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push origin HEAD:"${GITHUB_REF_NAME}"
+          fi
