@@ -23,6 +23,7 @@ jobs:
     timeout-minutes: 55
     permissions:
       contents: write
+      issues: write
     env:
       STEPS: ${{ github.event.inputs.steps || 'all' }}
       YEARS: ${{ github.event.inputs.years || '2020,2024,2025' }}
@@ -45,6 +46,27 @@ jobs:
           mkdir -p ../data/_log
           python fetch_era5.py --years "$YEARS" 2>&1 | tee ../data/_log/weather.txt
 
+
+      - name: Фиксация метеоряда
+        if: always()
+        run: |
+          set +e
+          git config user.name "akvachek-pipeline"
+          git config user.email "pipeline@akvachek.local"
+          git add -A data || echo "add data: $?"
+          if [ -d web/public/data ]; then git add -A web/public/data || echo "add web: $?"; fi
+          echo "staged: $(git diff --cached --name-only | wc -l)"
+          if git diff --cached --quiet; then
+            echo "нет изменений"
+          else
+            git commit -q -m "data: метеоряд ERA5 [skip ci]" && echo "commit ok" || echo "commit FAIL $?"
+            for i in 1 2 3; do
+              git pull --rebase origin "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+              sleep 5
+            done
+            git push origin HEAD:"$GITHUB_REF_NAME" && echo "push ok" || echo "push FAIL $?"
+          fi
+
       - name: Снимки Sentinel-2
         if: ${{ env.STEPS == 'all' || env.STEPS == 'imagery' }}
         continue-on-error: true
@@ -53,6 +75,27 @@ jobs:
           mkdir -p ../data/_log
           python fetch_sentinel.py 2>&1 | tee ../data/_log/imagery.txt
 
+
+      - name: Фиксация снимков
+        if: always()
+        run: |
+          set +e
+          git config user.name "akvachek-pipeline"
+          git config user.email "pipeline@akvachek.local"
+          git add -A data || echo "add data: $?"
+          if [ -d web/public/data ]; then git add -A web/public/data || echo "add web: $?"; fi
+          echo "staged: $(git diff --cached --name-only | wc -l)"
+          if git diff --cached --quiet; then
+            echo "нет изменений"
+          else
+            git commit -q -m "data: снимки Sentinel-2 [skip ci]" && echo "commit ok" || echo "commit FAIL $?"
+            for i in 1 2 3; do
+              git pull --rebase origin "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+              sleep 5
+            done
+            git push origin HEAD:"$GITHUB_REF_NAME" && echo "push ok" || echo "push FAIL $?"
+          fi
+
       - name: Контуры и характеристики чеков
         if: ${{ env.STEPS == 'all' || env.STEPS == 'checks' }}
         continue-on-error: true
@@ -60,6 +103,27 @@ jobs:
         run: |
           mkdir -p ../data/_log
           python build_checks.py 2>&1 | tee ../data/_log/checks.txt
+
+
+      - name: Фиксация чеков
+        if: always()
+        run: |
+          set +e
+          git config user.name "akvachek-pipeline"
+          git config user.email "pipeline@akvachek.local"
+          git add -A data || echo "add data: $?"
+          if [ -d web/public/data ]; then git add -A web/public/data || echo "add web: $?"; fi
+          echo "staged: $(git diff --cached --name-only | wc -l)"
+          if git diff --cached --quiet; then
+            echo "нет изменений"
+          else
+            git commit -q -m "data: контуры чеков [skip ci]" && echo "commit ok" || echo "commit FAIL $?"
+            for i in 1 2 3; do
+              git pull --rebase origin "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+              sleep 5
+            done
+            git push origin HEAD:"$GITHUB_REF_NAME" && echo "push ok" || echo "push FAIL $?"
+          fi
 
       - name: Что получилось
         run: |
@@ -81,18 +145,29 @@ jobs:
                   print(name, "—", json.dumps(j, ensure_ascii=False)[:400])
           PY
 
-      - name: Фиксация результатов
+      - name: Журнал в задачу
         if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "akvachek-pipeline"
-          git config user.email "pipeline@akvachek.local"
-          git add -A data web/public/data
-          if git diff --cached --quiet; then
-            echo "изменений нет"
-          else
-            git commit -m "data: обновлены данные пайплайна [skip ci]"
-            for i in 1 2 3 4 5; do
-              git pull --rebase origin "$GITHUB_REF_NAME" && break || sleep 5
+          set +e
+          {
+            echo "### Прогон $GITHUB_RUN_ID ($GITHUB_RUN_NUMBER)"
+            echo "ветка: $GITHUB_REF_NAME, событие: $GITHUB_EVENT_NAME, время: $(date -u +%FT%TZ)"
+            echo ""
+            echo "#### Файлы в data/"
+            find data -type f | sort | head -40
+            echo ""
+            for f in weather imagery checks; do
+              echo "#### Шаг $f (последние 40 строк)"
+              tail -40 "data/_log/$f.txt" 2>/dev/null || echo "нет журнала"
+              echo ""
             done
-            git push origin HEAD:"$GITHUB_REF_NAME"
-          fi
+            echo "#### Git"
+            echo "staged: $(git status --porcelain | wc -l)"
+            git log --oneline -3
+          } > /tmp/report.md
+          wc -c /tmp/report.md
+          gh issue comment 1 --repo "$GITHUB_REPOSITORY" --body-file /tmp/report.md \
+            && echo "журнал отправлен" || echo "issue FAIL $?"
