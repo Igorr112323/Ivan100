@@ -172,26 +172,49 @@ def _read_dem_one(url: str, width: int, height: int, transform) -> np.ndarray:
             return out
 
 
-def segment(water: np.ndarray) -> np.ndarray:
-    clean = ndi.binary_opening(water, structure=np.ones((3, 3)))
+def segment(field: np.ndarray, min_distance: int = 10, smooth: float = 2.5) -> np.ndarray:
+    """Разделение слипшихся чеков водоразделом по карте расстояний.
+
+    Карта расстояний сглаживается гауссианой: без этого на рваной кромке маски
+    находится десяток ложных максимумов внутри одного чека, и он рассыпается
+    на обрывки по 2-3 га. Маркеры ставятся не ближе 100 м друг к другу —
+    вал между чеками 10-30 м, сам чек 300-800 м.
+    """
+    clean = ndi.binary_opening(field, structure=np.ones((3, 3)))
     clean = ndi.binary_closing(clean, structure=np.ones((3, 3)))
     px_per_ha = 100
     clean = ndi.binary_opening(clean, structure=np.ones((2, 2)))
     dist = ndi.distance_transform_edt(clean)
-    # Минимум 40 м между маркерами: чек ~500-800 м, вал ~10-20 м
-    coords = peak_local_max(dist, min_distance=4, labels=clean, exclude_border=False)
+    dist_s = ndi.gaussian_filter(dist, smooth)
+    coords = peak_local_max(dist_s, min_distance=min_distance, labels=clean, exclude_border=False)
     if len(coords) == 0:
         return ndi.label(clean)[0]
     mask = np.zeros(dist.shape, dtype=bool)
     mask[tuple(coords.T)] = True
     markers, _ = ndi.label(mask)
-    labels = watershed(-dist, markers, mask=clean)
-    # Убираем région меньше 2 га (100 м × 100 м)
+    labels = watershed(-dist_s, markers, mask=clean)
+    # Убираем région меньше 3 га: это огрехи маски, а не чеки
     sizes = np.bincount(labels.ravel())
     sizes[0] = 0
-    small = sizes < (2 * px_per_ha)
+    small = sizes < (3 * px_per_ha)
     labels[small[labels]] = 0
     return labels
+
+
+def _size_histogram(labels: np.ndarray) -> None:
+    """Размеры всех контуров до фильтров: видно, чем кончилась сегментация."""
+    sizes = np.bincount(labels.ravel())[1:] * 100.0 / 10_000.0
+    if sizes.size == 0:
+        return
+    edges = [0, 1, 3, 5, 10, 20, 40, 60, 100, 1e9]
+    log("  размеры контуров до фильтров, га:")
+    for i in range(len(edges) - 1):
+        n = int(((sizes >= edges[i]) & (sizes < edges[i + 1])).sum())
+        ha = float(sizes[(sizes >= edges[i]) & (sizes < edges[i + 1])].sum())
+        if n:
+            left = "0" if i == 0 else f"{edges[i]:.0f}"
+            right = "∞" if edges[i + 1] > 1e8 else f"{edges[i + 1]:.0f}"
+            log(f"    {left}..{right} га: {n:5d} шт, {ha:8.1f} га")
 
 
 def canal_mask(water: np.ndarray) -> np.ndarray:
@@ -275,6 +298,7 @@ def main() -> None:
     labels = segment(rice_field)
     n_labels = int(labels.max())
     log(f"водораздел выделил {n_labels} контуров")
+    _size_histogram(labels)
 
     dem = read_dem(width, height, transform)
 
