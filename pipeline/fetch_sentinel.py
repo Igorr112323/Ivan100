@@ -69,7 +69,10 @@ def stac_search(start: str, end: str, limit: int = 60) -> list[dict]:
 
 
 def cloud_of(f: dict) -> float:
-    return float(f.get("properties", {}).get("eo:cloud_cover") or 1.0)
+    """Доля облачности 0..1. В каталоге попадаются обе шкалы — 0..1 и 0..100,
+    поэтому значения больше единицы считаем процентами."""
+    v = float(f.get("properties", {}).get("eo:cloud_cover") or 1.0)
+    return v / 100.0 if v > 1.0 else v
 
 
 def tile_of(f: dict) -> str:
