@@ -1,0 +1,16 @@
+[23:20:52] полигон [38.1088, 45.39014, 38.2588, 45.49414], сетка 1172 x 1150, чеков 127
+[23:20:52] май: 2025-05-22 | сцен 9 | тайлы ['MGRS-37TDL'] | облака 5.88 %
+[23:20:56]     годных пикселей 99.0 % | NDWI > 0 у 7.4 % | NDVI средний +0.396
+[23:20:56] июнь: 2025-06-08 | сцен 10 | тайлы ['MGRS-37TDL'] | облака 0.92 %
+[23:20:59]     годных пикселей 99.0 % | NDWI > 0 у 7.2 % | NDVI средний +0.478
+[23:21:00] июль: 2025-07-28 | сцен 11 | тайлы ['MGRS-37TDL'] | облака 0.08 %
+[23:21:03]     годных пикселей 99.0 % | NDWI > 0 у 0.6 % | NDVI средний +0.651
+[23:21:03] сентябрь: 2025-09-24 | сцен 14 | тайлы ['MGRS-37TDL'] | облака 0.23 %
+[23:21:06]     годных пикселей 99.0 % | NDWI > 0 у 0.5 % | NDVI средний +0.368
+Traceback (most recent call last):
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/rice_proof.py", line 294, in <module>
+    main()
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/rice_proof.py", line 147, in main
+    hot = m & (br >= thr) & np.isfinite(br)
+          ~~^~~~~~~~~~~~~
+ValueError: operands could not be broadcast together with shapes (1150,1172) (1180,) 
