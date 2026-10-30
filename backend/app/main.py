@@ -93,8 +93,8 @@ def api_meta():
     wmeta = json.loads(wmanifest.read_text(encoding="utf-8")) if wmanifest.exists() else {}
 
     demands = engine.season_demands(checks, season, perc_base)
-    nd = engine.net_demand(checks, demands["etm"], demands["perc"])
-    norms = [engine.gross_norm_mm(nd[i], checks[i].kpd) for i in range(len(checks))]
+    norms = [engine.gross_norm(demands["etm"][i], demands["perc"][i], checks[i].kpd)
+             for i in range(len(checks))]
     return {
         "project": {
             "name": "АКВАЧЕК",
@@ -220,7 +220,6 @@ def _optimize(year: int, deficit: float, ky: float, intermittent: bool):
     demands = engine.season_demands(checks, season, perc_base, intermittent=intermittent)
     etm, perc = demands["etm"], demands["perc"]
 
-    nd = engine.net_demand(checks, etm, perc)
     lp = engine.solve_lp(checks, etm, perc, deficit, ky)
     if not lp["ok"]:
         raise HTTPException(500, f"решатель: {lp['status']}")
@@ -267,9 +266,15 @@ def _optimize(year: int, deficit: float, ky: float, intermittent: bool):
         ),
         "norms_m3_ha": {
             "mean": round(
-                sum(engine.gross_norm_mm(nd[i], checks[i].kpd) for i in range(len(checks))) / len(checks), 0
+                sum(engine.gross_norm(etm[i], perc[i], checks[i].kpd) for i in range(len(checks)))
+                / len(checks), 0
             ),
+            "min": round(min(engine.gross_norm(etm[i], perc[i], checks[i].kpd)
+                             for i in range(len(checks))), 0),
+            "max": round(max(engine.gross_norm(etm[i], perc[i], checks[i].kpd)
+                             for i in range(len(checks))), 0),
         },
+        "fallowed_by_optimizer": lp.get("fallowed", []),
     }
 
 
@@ -278,8 +283,9 @@ def _vedomost(checks, season, lp, etm, perc) -> list[dict]:
     rows = []
     for i, c in enumerate(checks):
         gross = lp["gross_mm"][i]
-        total_mm = sum(gross) + engine.INITIAL_MM / c.kpd
-        full_mm = sum(etm[i]) + sum(perc[i]) + engine.INITIAL_MM / c.kpd
+        active = lp["per_check"][i].get("active", True)
+        total_mm = sum(gross) + (engine.INITIAL_MM / c.kpd if active else 0.0)
+        full_mm = (sum(etm[i]) + sum(perc[i]) + engine.INITIAL_MM) / c.kpd  # брутто, мм
         rows.append(
             {
                 "id": c.id,
@@ -289,6 +295,7 @@ def _vedomost(checks, season, lp, etm, perc) -> list[dict]:
                 "season_m3": round(c.area_ha * total_mm * engine.MM_TO_M3_HA, 0),
                 "norm_full_m3": round(c.area_ha * full_mm * engine.MM_TO_M3_HA, 0),
                 "cut_pct": round(100.0 * (1.0 - total_mm / full_mm), 1) if full_mm else 0.0,
+                "active": active,
                 "yield_frac": lp["per_check"][i]["yield_frac"],
                 "decades": [
                     {

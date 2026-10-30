@@ -52,6 +52,7 @@ RAIN_EFF = 0.70
 SEG1, SLOPE1, SLOPE2 = 0.30, 0.70, 1.60
 
 YIELD_BASE_C_HA = 73.1      # урожайность риса в крае, 2025 г., ц/га (Росстат)
+YIELD_T_HA = YIELD_BASE_C_HA / 10.0   # 1 ц = 0,1 т -> т/га
 PRICE_RUB_KG = 25.0
 KRAI_AREA_HA = 112_300
 KRAI_GROSS_T = 829_700
@@ -193,7 +194,7 @@ def season_demands(checks: list, season: Season, perc_base: float, intermittent:
 
 
 def net_demand(checks: list, etm: list, perc: list) -> list:
-    """Эксплуатационная потребность чека по декадам (нетто), мм.
+    """Суммарная эксплуатационная потребность по декадам (нетто), мм — для ведомостей.
 
     Разовое затопление и насыщение (2 000 м³/га) сюда не входит: по кубанской технологии
     его проводят до сева, это постоянная часть сезонного водозабора, а не декадный расход.
@@ -201,9 +202,32 @@ def net_demand(checks: list, etm: list, perc: list) -> list:
     return [[etm[i][p] + perc[i][p] for p in range(len(etm[i]))] for i in range(len(checks))]
 
 
+def gross_decade(etm_p: float, perc_p: float, delta: float, kpd: float) -> float:
+    """Подача за декаду брутто, мм.
+
+    Дефицит урезает испарение: именно ETa/ETm определяет урожай по FAO-33. Фильтрация —
+    обязательная статья баланса, её нельзя «недолить», не осушив чек: слой воды держится
+    валиками, и при сокращении подачи в первую очередь падает испарение, а не инфильтрация.
+    """
+    return ((1.0 - delta) * etm_p + perc_p) / kpd
+
+
+def et_deficit_of(gross_p: float, etm_p: float, perc_p: float, kpd: float) -> float:
+    """Обратная задача: какой дефицит испарения соответствует данной подаче."""
+    if etm_p <= 1e-9:
+        return 0.0
+    available = gross_p * kpd - perc_p
+    return max(0.0, min(1.0, 1.0 - available / etm_p))
+
+
 def initial_mm(kpd: float) -> float:
     """Разовое затопление и насыщение, мм брутто."""
     return INITIAL_MM / kpd
+
+
+def gross_norm(etm_row: list, perc_row: list, kpd: float) -> float:
+    """Сезонная оросительная норма брутто, м³/га."""
+    return (sum(etm_row) + sum(perc_row) + INITIAL_MM) / kpd * MM_TO_M3_HA
 
 
 def gross_norm_mm(nd: list, kpd: float) -> float:
@@ -215,8 +239,8 @@ def calibrate_percolation(checks: list, season: Season, target: float = TARGET_N
     for _ in range(40):
         mid = (lo + hi) / 2
         d = season_demands(checks, season, mid)
-        nd = net_demand(checks, d["etm"], d["perc"])
-        mean_norm = sum(gross_norm_mm(nd[i], checks[i].kpd) for i in range(len(checks))) / len(checks)
+        mean_norm = sum(gross_norm(d["etm"][i], d["perc"][i], checks[i].kpd)
+                        for i in range(len(checks))) / len(checks)
         if mean_norm < target:
             lo = mid
         else:
@@ -256,92 +280,181 @@ def yield_fraction(deltas: list, etm_row: list, ky_global: float) -> float:
     return max(0.0, 1.0 - loss)
 
 
-def solve_lp(checks: list, etm: list, perc: list, deficit: float, ky_global: float,
-             capacity_l_s_ha: float = 3.5) -> dict:
-    n = len(checks)
-    p_dec = len(etm[0])
-    nd = net_demand(checks, etm, perc)
-    w = et_weights(etm[0])  # одинаково для всех чеков: ETm зависит только от погоды и Kc
+def _lp_fixed(checks: list, etm: list, perc: list, active: list, budget: float,
+              ky_global: float, capacity_l_s_ha: float) -> dict:
+    """Чистое ЛП при заданном составе чеков в севообороте.
 
-    fixed_water = sum(checks[i].area_ha * initial_mm(checks[i].kpd) * MM_TO_M3_HA for i in range(n))
-    full_water = fixed_water + sum(checks[i].area_ha * sum(nd[i]) / checks[i].kpd * MM_TO_M3_HA for i in range(n))
-    budget = (1.0 - deficit) * full_water
+    Переменные — дефицит испарения по чеку и декаде (две ступени кусочно-линейной функции
+    потери). Ограничения: лимит водозабора на сезон и пропускная способность водовыпуска.
+    """
+    p_dec = len(etm[0])
+    w = et_weights(etm[0])  # ETm одинаково для всех чеков: погода и Kc общие
+    dec_len = decade_lengths(SEASON_DAYS)
 
     prob = pulp.LpProblem("akvachek", pulp.LpMinimize)
-    d1 = {(i, p): pulp.LpVariable(f"d1_{i}_{p}", lowBound=0, upBound=SEG1) for i in range(n) for p in range(p_dec)}
-    d2 = {(i, p): pulp.LpVariable(f"d2_{i}_{p}", lowBound=0, upBound=1.0 - SEG1) for i in range(n) for p in range(p_dec)}
+    d1 = {(i, p): pulp.LpVariable(f"d1_{i}_{p}", lowBound=0, upBound=SEG1) for i in active for p in range(p_dec)}
+    d2 = {(i, p): pulp.LpVariable(f"d2_{i}_{p}", lowBound=0, upBound=1.0 - SEG1) for i in active for p in range(p_dec)}
 
     prob += pulp.lpSum(
-        checks[i].area_ha
-        * (YIELD_BASE_C_HA / 100.0)
-        * ky_global
-        * PHASES_KY_W[phase_of_dec(p)]
-        * w[p]
+        checks[i].area_ha * YIELD_T_HA * ky_global * PHASES_KY_W[phase_of_dec(p)] * w[p]
         * (SLOPE1 * d1[(i, p)] + SLOPE2 * d2[(i, p)])
-        for i in range(n)
-        for p in range(p_dec)
+        for i in active for p in range(p_dec)
     )
 
-    # лимит водозабора на сезон, м³
+    for i in active:
+        prob += pulp.lpSum(
+            ky_global * PHASES_KY_W[phase_of_dec(p)] * w[p] * (SLOPE1 * d1[(i, p)] + SLOPE2 * d2[(i, p)])
+            for p in range(p_dec)
+        ) <= 1.0
+        for p in range(p_dec):
+            prob += gross_decade(etm[i][p], perc[i][p], d1[(i, p)] + d2[(i, p)], checks[i].kpd) \
+                    <= capacity_l_s_ha * 8.64 * dec_len[p]
+
     prob += (
         pulp.lpSum(
-            checks[i].area_ha * (1.0 - d1[(i, p)] - d2[(i, p)]) * nd[i][p] / checks[i].kpd * MM_TO_M3_HA
-            for i in range(n)
-            for p in range(p_dec)
+            checks[i].area_ha * gross_decade(etm[i][p], perc[i][p], d1[(i, p)] + d2[(i, p)], checks[i].kpd)
+            * MM_TO_M3_HA
+            for i in active for p in range(p_dec)
         )
-        + fixed_water
+        + pulp.lpSum(checks[i].area_ha * initial_mm(checks[i].kpd) * MM_TO_M3_HA for i in active)
         <= budget
     )
 
-    # пропускная способность водовыпуска, мм за декаду
-    for i in range(n):
-        for p, dl in enumerate(decade_lengths(SEASON_DAYS)):
-            cap_mm = capacity_l_s_ha * 8.64 * dl
-            prob += (1.0 - d1[(i, p)] - d2[(i, p)]) * nd[i][p] / checks[i].kpd <= cap_mm
-
     status = prob.solve(pulp.PULP_CBC_CMD(msg=False))
-    status_name = pulp.LpStatus[status]
-    if status_name != "Optimal":
-        return {"status": status_name, "ok": False}
+    if pulp.LpStatus[status] != "Optimal":
+        return {"ok": False, "status": pulp.LpStatus[status]}
 
-    deltas = [
-        [(d1[(i, p)].value() or 0.0) + (d2[(i, p)].value() or 0.0) for p in range(p_dec)] for i in range(n)
-    ]
-    gross = [[(1.0 - deltas[i][p]) * nd[i][p] / checks[i].kpd for p in range(p_dec)] for i in range(n)]
-    water = fixed_water + sum(checks[i].area_ha * sum(gross[i]) * MM_TO_M3_HA for i in range(n))
+    n = len(checks)
+    deltas = [[(d1[(i, p)].value() or 0.0) + (d2[(i, p)].value() or 0.0) if i in active else 1.0
+               for p in range(p_dec)] for i in range(n)]
+    gross = [[gross_decade(etm[i][p], perc[i][p], deltas[i][p], checks[i].kpd) if i in active else 0.0
+              for p in range(p_dec)] for i in range(n)]
+    water = sum(checks[i].area_ha * (sum(gross[i]) + initial_mm(checks[i].kpd)) * MM_TO_M3_HA for i in active)
     fracs = [yield_fraction(deltas[i], etm[i], ky_global) for i in range(n)]
     return {
-        "status": status_name,
         "ok": True,
+        "status": "Optimal",
+        "k": len(checks) - len(active),
         "deltas": deltas,
         "gross_mm": gross,
         "water_m3": water,
+        "yield_tons": sum(checks[i].area_ha * YIELD_T_HA * fracs[i] for i in range(n)),
+        "fracs": fracs,
+    }
+
+
+def solve_lp(checks: list, etm: list, perc: list, deficit: float, ky_global: float,
+             capacity_l_s_ha: float = 3.5, max_fallow_frac: float = 0.6,
+             budget_m3: float | None = None) -> dict:
+    """Оптимизатор водоподачи.
+
+    Два уровня решений: сколько чеков вывести из севооборота (целочисленный параметр k,
+    перебирается тернарным поиском, что быстро и даёт предсказуемый результат) и как
+    распределить остаток воды между чеками и декадами (чистое ЛП, решается точно).
+
+    Чеки на вывод упорядочены по удельной воде на единицу урожая — это наименее
+    выгодные чеки: чем выше отметка, тем больше фильтрация и ниже КПД подачи.
+    """
+    n = len(checks)
+    p_dec = len(etm[0])
+    nd = net_demand(checks, etm, perc)
+
+    fixed_all = sum(checks[i].area_ha * initial_mm(checks[i].kpd) * MM_TO_M3_HA for i in range(n))
+    variable_all = sum(checks[i].area_ha * sum(nd[i]) / checks[i].kpd * MM_TO_M3_HA for i in range(n))
+    full_water = fixed_all + variable_all
+    budget = budget_m3 if budget_m3 is not None else (1.0 - deficit) * full_water
+
+    norm_per_ha = [gross_norm(etm[i], perc[i], checks[i].kpd) for i in range(n)]
+    worst_first = sorted(range(n), key=lambda i: -norm_per_ha[i])
+    k_max = int(max_fallow_frac * n)
+
+    def run(k: int) -> dict:
+        active = worst_first[k:]
+        r = _lp_fixed(checks, etm, perc, active, budget, ky_global, capacity_l_s_ha)
+        r["active"] = sorted(active)
+        return r
+
+    cache: dict[int, dict] = {}
+
+    def evaluate(k: int) -> float:
+        if k not in cache:
+            cache[k] = run(k)
+        r = cache[k]
+        return -1e18 if not r["ok"] else r["yield_tons"]
+
+    lo, hi = 0, k_max
+    while hi - lo > 3:
+        third = (hi - lo) // 3
+        m1, m2 = lo + third, hi - third
+        if evaluate(m1) < evaluate(m2):
+            lo = m1
+        else:
+            hi = m2
+    best_k = max(range(lo, min(hi, k_max) + 1), key=evaluate)
+    res = cache[best_k]
+
+    deltas = res["deltas"]
+    gross = res["gross_mm"]
+    in_rotation = [i in set(res["active"]) for i in range(n)]
+    return {
+        "status": res["status"],
+        "ok": True,
+        "deltas": deltas,
+        "gross_mm": gross,
+        "in_rotation": in_rotation,
+        "fallowed": [checks[i].id for i in range(n) if not in_rotation[i]],
+        "water_m3": res["water_m3"],
         "budget_m3": budget,
-        "yield_tons": sum(checks[i].area_ha * YIELD_BASE_C_HA / 100.0 * fracs[i] for i in range(n)),
+        "full_water_m3": full_water,
+        "yield_tons": res["yield_tons"],
         "per_check": [
             {
                 "id": checks[i].id,
-                "deficit_pct": round(100.0 * (1.0 - sum((1.0 - d) * nd[i][p] for p, d in enumerate(deltas[i]))
-                                              / max(sum(nd[i]), 1e-9)), 2),
-                "yield_frac": round(fracs[i], 4),
+                "active": in_rotation[i],
+                "deficit_pct": round(100.0 * (1.0 - sum((1.0 - d) * etm[i][p] for p, d in enumerate(deltas[i]))
+                                              / max(sum(etm[i]), 1e-9)), 2),
+                "cut_pct": round(100.0 * (1.0 - sum(gross[i]) / max(sum(nd[i]) / checks[i].kpd, 1e-9)), 2),
+                "yield_frac": round(res["fracs"][i], 4),
             }
             for i in range(n)
         ],
     }
 
 
+def uniform_delta(checks: list, etm: list, perc: list, budget: float, active=None) -> float:
+    """Единый для всех срез по испарению, который укладывается ровно в заданный бюджет воды."""
+    n = len(checks)
+    act = range(n) if active is None else active
+    fixed = sum(checks[i].area_ha * initial_mm(checks[i].kpd) * MM_TO_M3_HA for i in act)
+    et_term = sum(checks[i].area_ha * sum(etm[i]) / checks[i].kpd * MM_TO_M3_HA for i in act)
+    perc_term = sum(checks[i].area_ha * sum(perc[i]) / checks[i].kpd * MM_TO_M3_HA for i in act)
+    if et_term <= 1e-9:
+        return 1.0
+    rest = budget - fixed - perc_term
+    return max(0.0, min(1.0, 1.0 - rest / et_term))
+
+
 def baseline_uniform(checks: list, etm: list, perc: list, deficit: float, ky_global: float) -> dict:
+    """Практика «всем поровну»: тот же лимит воды, что и у оптимизатора, срез одинаков для всех."""
     nd = net_demand(checks, etm, perc)
     n = len(checks)
-    deltas = [[deficit] * len(nd[0]) for _ in range(n)]
+    fixed = sum(checks[i].area_ha * initial_mm(checks[i].kpd) * MM_TO_M3_HA for i in range(n))
+    variable = sum(checks[i].area_ha * sum(nd[i]) / checks[i].kpd * MM_TO_M3_HA for i in range(n))
+    budget = (1.0 - deficit) * (fixed + variable)
+    delta = uniform_delta(checks, etm, perc, budget)
+    deltas = [[delta] * len(nd[0]) for _ in range(n)]
     fracs = [yield_fraction(deltas[i], etm[i], ky_global) for i in range(n)]
-    water = sum(checks[i].area_ha * (sum((1.0 - deficit) * v for v in nd[i]) / checks[i].kpd
-                                     + initial_mm(checks[i].kpd)) * MM_TO_M3_HA for i in range(n))
+    gross = [[gross_decade(etm[i][p], perc[i][p], delta, checks[i].kpd) for p in range(len(nd[i]))]
+             for i in range(n)]
+    water = fixed + sum(checks[i].area_ha * sum(gross[i]) * MM_TO_M3_HA for i in range(n))
     return {
         "deltas": deltas,
+        "gross_mm": gross,
         "water_m3": water,
-        "yield_tons": sum(checks[i].area_ha * YIELD_BASE_C_HA / 100.0 * fracs[i] for i in range(n)),
-        "per_check": [{"id": checks[i].id, "deficit_pct": round(deficit * 100, 2),
+        "budget_m3": budget,
+        "yield_tons": sum(checks[i].area_ha * YIELD_T_HA * fracs[i] for i in range(n)),
+        "per_check": [{"id": checks[i].id, "deficit_pct": round(delta * 100, 2),
+                       "cut_pct": round(100 * (1 - sum(gross[i]) / max(sum(nd[i]) / checks[i].kpd, 1e-9)), 2),
                        "yield_frac": round(fracs[i], 4)} for i in range(n)],
     }
 
@@ -350,7 +463,7 @@ def baseline_fallowing(checks: list, etm: list, perc: list, deficit: float, ky_g
     """Реальная практика маловодья: чеки с высокими отметками выводятся из севооборота."""
     nd = net_demand(checks, etm, perc)
     n = len(checks)
-    demand = [sum(nd[i]) / checks[i].kpd + initial_mm(checks[i].kpd) for i in range(n)]
+    demand = [(sum(nd[i]) / checks[i].kpd + initial_mm(checks[i].kpd)) * MM_TO_M3_HA for i in range(n)]
     budget = (1.0 - deficit) * sum(demand[i] * checks[i].area_ha for i in range(n))
 
     order = sorted(range(n), key=lambda i: -checks[i].dz_m)
@@ -361,38 +474,39 @@ def baseline_fallowing(checks: list, etm: list, perc: list, deficit: float, ky_g
             break
         active.discard(i)
         used -= demand[i] * checks[i].area_ha
-    # оставшимся чекам урезаем только эксплуатационную часть: затопление проведено до сева
-    fixed_active = sum(checks[i].area_ha * initial_mm(checks[i].kpd) for i in active)
-    operational = sum(checks[i].area_ha * sum(nd[i]) / checks[i].kpd for i in active)
-    scale = 1.0 if operational <= 0 else min(1.0, max(0.0, (budget - fixed_active) / operational))
-
-    deltas = []
-    for i in range(n):
-        deltas.append([0.0 if i in active else 1.0] * len(nd[0]) if i not in active
-                      else [1.0 - scale] * len(nd[0]))
+    # оставшимся чекам урезаем эксплуатационную часть ровно до бюджета
+    delta = uniform_delta(checks, etm, perc, budget, active=sorted(active))
+    deltas = [[delta if i in active else 1.0] * len(nd[0]) for i in range(n)]
     fracs = [yield_fraction(deltas[i], etm[i], ky_global) for i in range(n)]
+    # выведенный из севооборота чек не получает воду вовсе: ни затопления, ни эксплуатационной подачи
     water = sum(
-        checks[i].area_ha * (sum((1.0 - deltas[i][p]) * nd[i][p] for p in range(len(nd[i]))) / checks[i].kpd
-                             + (initial_mm(checks[i].kpd) if i in active else 0.0)) * MM_TO_M3_HA
+        checks[i].area_ha * (sum(gross_decade(etm[i][p], perc[i][p], deltas[i][p], checks[i].kpd)
+                                 for p in range(len(nd[i])))
+                             + (initial_mm(checks[i].kpd) if i in active else 0.0))
+        * MM_TO_M3_HA * (1.0 if i in active else 0.0)
         for i in range(n)
     )
     return {
         "water_m3": water,
-        "yield_tons": sum(checks[i].area_ha * YIELD_BASE_C_HA / 100.0 * fracs[i] for i in range(n)),
+        "delta_pct": round(delta * 100, 2),
+        "yield_tons": sum(checks[i].area_ha * YIELD_T_HA * fracs[i] for i in range(n)),
         "fallowed": [checks[i].id for i in range(n) if i not in active],
         "per_check": [{"id": checks[i].id, "active": i in active,
                        "deficit_pct": round(deltas[i][0] * 100, 2),
                        "yield_frac": round(fracs[i], 4)} for i in range(n)],
+        "gross_mm": [[gross_decade(etm[i][p], perc[i][p], deltas[i][p], checks[i].kpd)
+                      if i in active else 0.0
+                      for p in range(len(nd[i]))] for i in range(n)],
     }
 
 
 def evaluate_decision(checks: list, gross_mm: list, etm: list, perc: list, ky_global: float) -> float:
     """Оценка принятого решения в истинной модели: сколько урожая реально получится."""
-    nd = net_demand(checks, etm, perc)
     total = 0.0
     for i in range(len(checks)):
-        deltas = [1.0 - (gross_mm[i][p] * checks[i].kpd) / max(nd[i][p], 1e-9) for p in range(len(nd[i]))]
-        total += checks[i].area_ha * YIELD_BASE_C_HA / 100.0 * yield_fraction(deltas, etm[i], ky_global)
+        deltas = [et_deficit_of(gross_mm[i][p], etm[i][p], perc[i][p], checks[i].kpd)
+                  for p in range(len(etm[i]))]
+        total += checks[i].area_ha * YIELD_T_HA * yield_fraction(deltas, etm[i], ky_global)
     return total
 
 
@@ -446,7 +560,7 @@ def _histogram(values: list, bins: int) -> list:
 
 
 def economics(gain_pct: float, area_ha: float, price: float = PRICE_RUB_KG) -> dict:
-    per_ha_kg = YIELD_BASE_C_HA * 10.0 * gain_pct / 100.0
+    per_ha_kg = YIELD_BASE_C_HA * 100.0 * gain_pct / 100.0  # ц/га -> кг/га
     per_ha_rub = per_ha_kg * price
     krai_tons = KRAI_GROSS_T * gain_pct / 100.0
     return {
