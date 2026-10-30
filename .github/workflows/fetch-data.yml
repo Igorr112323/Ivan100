@@ -1,11 +1,5 @@
 name: fetch-data
 
-# Пайплайн добычи РЕАЛЬНЫХ данных проекта «АКВАЧЕК».
-# Источники: Sentinel-2 L2A (Copernicus/ESA, публичные COG на AWS Open Data),
-# ERA5 (ECMWF) через Historical Weather API, Copernicus DEM GLO-30 (AWS Open Data).
-# Раннер скачивает данные и коммитит их в data/. Синтетических значений нет:
-# если источник недоступен, пайплайн завершается ошибкой.
-
 on:
   push:
     branches: ["**"]
@@ -14,22 +8,24 @@ on:
       - ".github/workflows/fetch-data.yml"
   workflow_dispatch:
     inputs:
-      years:
-        description: "Годы метеоряда ERA5 (через запятую)"
-        required: false
-        default: "2020,2024,2025"
       steps:
-        description: "Что выполнить: all | era5 | sentinel | checks"
+        description: "all | weather | imagery | checks"
         required: false
         default: "all"
-
-permissions:
-  contents: write
+      years:
+        description: "Годы метеоряда"
+        required: false
+        default: "2020,2024,2025"
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
     timeout-minutes: 55
+    permissions:
+      contents: write
+    env:
+      STEPS: ${{ github.event.inputs.steps || 'all' }}
+      YEARS: ${{ github.event.inputs.years || '2020,2024,2025' }}
     steps:
       - name: Клонирование репозитория
         uses: actions/checkout@v4
@@ -40,58 +36,63 @@ jobs:
           python-version: "3.11"
 
       - name: Зависимости пайплайна
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r pipeline/requirements.txt
+        run: pip install -r pipeline/requirements.txt
 
       - name: Метеоряд ERA5
-        if: ${{ (github.event.inputs.steps || 'all') == 'all' || github.event.inputs.steps == 'era5' }}
+        continue-on-error: true
         working-directory: pipeline
-        run: python fetch_era5.py --years "${{ github.event.inputs.years || '2020,2024,2025' }}"
+        run: |
+          mkdir -p ../data/_log
+          python fetch_era5.py --years "$YEARS" 2>&1 | tee ../data/_log/weather.txt
 
       - name: Снимки Sentinel-2
-        if: ${{ (github.event.inputs.steps || 'all') == 'all' || github.event.inputs.steps == 'sentinel' }}
+        if: ${{ env.STEPS == 'all' || env.STEPS == 'imagery' }}
+        continue-on-error: true
         working-directory: pipeline
-        run: python fetch_sentinel.py
-
-      - name: Фиксация метеоряда
         run: |
-          git config user.name "akvachek-pipeline"
-          git config user.email "pipeline@akvachek.local"
-          git add -A data web/public/data
-          git diff --cached --quiet || git commit -m "data: метеоряд ERA5 [skip ci]"
-          git pull --rebase origin "${GITHUB_REF_NAME}" || true
-          git push origin HEAD:"${GITHUB_REF_NAME}" || true
+          mkdir -p ../data/_log
+          python fetch_sentinel.py 2>&1 | tee ../data/_log/imagery.txt
 
       - name: Контуры и характеристики чеков
-        if: ${{ (github.event.inputs.steps || 'all') == 'all' || github.event.inputs.steps == 'checks' }}
+        if: ${{ env.STEPS == 'all' || env.STEPS == 'checks' }}
+        continue-on-error: true
         working-directory: pipeline
-        run: python build_checks.py
+        run: |
+          mkdir -p ../data/_log
+          python build_checks.py 2>&1 | tee ../data/_log/checks.txt
 
       - name: Что получилось
         run: |
-          echo "=== data ==="
-          find data -type f | sort | head -60
-          echo "=== размеры ==="
-          du -sh data/* 2>/dev/null || true
-          if [ -f data/checks.geojson ]; then
-            python - <<'PY'
-          import json
-          g = json.load(open("data/checks.geojson", encoding="utf-8"))
-          m = g.get("metadata", {})
-          print("чеков:", m.get("count"), "| площадь, га:", m.get("total_ha"), "| ср. отметка:", m.get("mean_elev_m"))
+          echo "--- структура data/ ---"
+          find data -type f | sort | head -40
+          echo "--- сводка ---"
+          python - <<'PY'
+          import json, pathlib
+          root = pathlib.Path("data")
+          for name in ("checks.geojson", "scenes.json", "weather/manifest.json"):
+              p = root / name
+              if not p.exists():
+                  print(name, "— нет")
+                  continue
+              j = json.loads(p.read_text(encoding="utf-8"))
+              if name.endswith("geojson"):
+                  print(f"чеков: {len(j['features'])}")
+              else:
+                  print(name, "—", json.dumps(j, ensure_ascii=False)[:400])
           PY
-          fi
 
       - name: Фиксация результатов
+        if: always()
         run: |
           git config user.name "akvachek-pipeline"
           git config user.email "pipeline@akvachek.local"
           git add -A data web/public/data
           if git diff --cached --quiet; then
-            echo "новых данных нет"
+            echo "изменений нет"
           else
-            git commit -m "data: реальные данные Sentinel-2 / ERA5 / Copernicus DEM [skip ci]"
-            git pull --rebase origin "${GITHUB_REF_NAME}"
-            git push origin HEAD:"${GITHUB_REF_NAME}"
+            git commit -m "data: обновлены данные пайплайна [skip ci]"
+            for i in 1 2 3 4 5; do
+              git pull --rebase origin "$GITHUB_REF_NAME" && break || sleep 5
+            done
+            git push origin HEAD:"$GITHUB_REF_NAME"
           fi

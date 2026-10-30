@@ -228,11 +228,12 @@ def main() -> None:
     lo, hi = np.nanpercentile(stack[np.isfinite(stack)], [2, 98])
     rgb = np.clip((stack - lo) / max(hi - lo, 1e-6), 0, 1)
     rgb = (rgb ** (1 / 1.35) * 255).astype("uint8")  # мягкая гамма-коррекция, как в полевых планшетах
-    rgb = np.where(np.isfinite(stack)[..., None], rgb[..., None], 0).astype("uint8")
+    rgb = np.where(np.isfinite(stack), rgb, 0).astype("uint8")
 
-    img = Image.fromarray(rgb)
+    img = Image.fromarray(rgb, mode="RGB")
     out_dir = SENTINEL
     img.save(out_dir / "array_rgb.jpg", quality=88, optimize=True)
+    log(f"array_rgb.jpg: {img.size[0]}x{img.size[1]}")
     w, s, e, n = AOI["bbox"]
     write_json(
         SENTINEL / "array_rgb.json",
