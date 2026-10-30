@@ -51,6 +51,14 @@ TARGET_NORM_M3_HA = 16_009
 RAIN_EFF = 0.70
 SEG1, SLOPE1, SLOPE2 = 0.30, 0.70, 1.60
 
+# Ограничение режима: чек в севообороте недополучает не более 10 % своей нормы воды.
+# Иначе оптимизатор «экономит», собирая весь дефицит на немногих чеках — на бумаге выгода
+# есть, в поле такие чеки просто теряют урожай. Включено по умолчанию.
+MAX_CUT = 0.10
+LIMIT_MIN = 0.70   # слайдер лимита водоподачи: 100 % .. 70 %
+LIMIT_MAX = 1.00
+LIMIT_STEP = 0.01
+
 YIELD_BASE_C_HA = 73.1      # урожайность риса в крае, 2025 г., ц/га (Росстат)
 YIELD_T_HA = YIELD_BASE_C_HA / 10.0   # 1 ц = 0,1 т -> т/га
 PRICE_RUB_KG = 25.0
@@ -281,7 +289,7 @@ def yield_fraction(deltas: list, etm_row: list, ky_global: float) -> float:
 
 
 def _lp_fixed(checks: list, etm: list, perc: list, active: list, budget: float,
-              ky_global: float, capacity_l_s_ha: float) -> dict:
+              ky_global: float, capacity_l_s_ha: float, max_cut: float = MAX_CUT) -> dict:
     """Чистое ЛП при заданном составе чеков в севообороте.
 
     Переменные — дефицит испарения по чеку и декаде (две ступени кусочно-линейной функции
@@ -306,6 +314,10 @@ def _lp_fixed(checks: list, etm: list, perc: list, active: list, budget: float,
             ky_global * PHASES_KY_W[phase_of_dec(p)] * w[p] * (SLOPE1 * d1[(i, p)] + SLOPE2 * d2[(i, p)])
             for p in range(p_dec)
         ) <= 1.0
+        if max_cut < 1.0:
+            # недолив воды на чек за сезон: сумма ETm*дефицит <= доля * полная потребность чека
+            prob += pulp.lpSum(etm[i][p] * (d1[(i, p)] + d2[(i, p)]) for p in range(p_dec)) \
+                    <= max_cut * sum(etm[i][p] + perc[i][p] for p in range(p_dec))
         for p in range(p_dec):
             prob += gross_decade(etm[i][p], perc[i][p], d1[(i, p)] + d2[(i, p)], checks[i].kpd) \
                     <= capacity_l_s_ha * 8.64 * dec_len[p]
@@ -345,7 +357,7 @@ def _lp_fixed(checks: list, etm: list, perc: list, active: list, budget: float,
 
 def solve_lp(checks: list, etm: list, perc: list, deficit: float, ky_global: float,
              capacity_l_s_ha: float = 3.5, max_fallow_frac: float = 0.6,
-             budget_m3: float | None = None) -> dict:
+             budget_m3: float | None = None, max_cut: float = MAX_CUT) -> dict:
     """Оптимизатор водоподачи.
 
     Два уровня решений: сколько чеков вывести из севооборота (целочисленный параметр k,
@@ -370,7 +382,7 @@ def solve_lp(checks: list, etm: list, perc: list, deficit: float, ky_global: flo
 
     def run(k: int) -> dict:
         active = worst_first[k:]
-        r = _lp_fixed(checks, etm, perc, active, budget, ky_global, capacity_l_s_ha)
+        r = _lp_fixed(checks, etm, perc, active, budget, ky_global, capacity_l_s_ha, max_cut)
         r["active"] = sorted(active)
         return r
 
@@ -399,6 +411,7 @@ def solve_lp(checks: list, etm: list, perc: list, deficit: float, ky_global: flo
     return {
         "status": res["status"],
         "ok": True,
+        "max_cut": max_cut,
         "deltas": deltas,
         "gross_mm": gross,
         "in_rotation": in_rotation,
@@ -511,12 +524,13 @@ def evaluate_decision(checks: list, gross_mm: list, etm: list, perc: list, ky_gl
 
 
 def monte_carlo(checks: list, season: Season, perc_base: float, deficit: float, ky_global: float,
-                sigma_m: float, runs: int = 60, seed: int = 20261030) -> dict:
+                sigma_m: float, runs: int = 60, seed: int = 20261030,
+                max_cut: float = MAX_CUT) -> dict:
     """Стресс-тест: решение принимается по зашумлённым отметкам, оценивается в истинной модели."""
     rng = random.Random(seed)
     d_true = season_demands(checks, season, perc_base)
     etm_t, perc_t = d_true["etm"], d_true["perc"]
-    base_uniform = baseline_uniform(checks, etm_t, perc_t, deficit, ky_global)["yield_tons"]
+    base_fallowing = baseline_fallowing(checks, etm_t, perc_t, deficit, ky_global)["yield_tons"]
 
     gains = []
     for _ in range(runs):
@@ -525,11 +539,11 @@ def monte_carlo(checks: list, season: Season, perc_base: float, deficit: float, 
             dz = c.dz_m + rng.gauss(0.0, sigma_m)
             noisy.append(Check(c.id, c.area_ha, c.elev_m + (dz - c.dz_m), dz, kpd_of(dz), c.centroid))
         d_noisy = season_demands(noisy, season, perc_base)
-        res = solve_lp(noisy, d_noisy["etm"], d_noisy["perc"], deficit, ky_global)
+        res = solve_lp(noisy, d_noisy["etm"], d_noisy["perc"], deficit, ky_global, max_cut=max_cut)
         if not res["ok"]:
             continue
         truth = evaluate_decision(checks, res["gross_mm"], etm_t, perc_t, ky_global)
-        gains.append(100.0 * (truth / base_uniform - 1.0))
+        gains.append(100.0 * (truth / base_fallowing - 1.0))
 
     if not gains:
         return {"runs": 0}
@@ -538,6 +552,8 @@ def monte_carlo(checks: list, season: Season, perc_base: float, deficit: float, 
     return {
         "runs": n,
         "sigma_m": sigma_m,
+        "base": "практика вывода чеков из севооборота",
+        "max_cut": max_cut,
         "mean": sum(gains) / n,
         "p05": gains[int(0.05 * n)],
         "p50": gains[n // 2],
@@ -560,18 +576,17 @@ def _histogram(values: list, bins: int) -> list:
 
 
 def economics(gain_pct: float, area_ha: float, price: float = PRICE_RUB_KG) -> dict:
-    per_ha_kg = YIELD_BASE_C_HA * 100.0 * gain_pct / 100.0  # ц/га -> кг/га
+    """Эффект в рублях на гектар массива и на весь массив. Экстраполяции на край нет:
+    модельный результат получен на одном массиве одного сезона."""
+    per_ha_kg = YIELD_T_HA * 1000.0 * gain_pct / 100.0  # т/га -> кг/га
     per_ha_rub = per_ha_kg * price
-    krai_tons = KRAI_GROSS_T * gain_pct / 100.0
     return {
         "gain_pct": gain_pct,
         "per_ha_kg": round(per_ha_kg, 2),
         "per_ha_rub": round(per_ha_rub, 0),
         "array_rub": round(per_ha_rub * area_ha, 0),
-        "pilot_rub": round(per_ha_rub * 500.0, 0),
-        "pilot_ha": 500.0,
-        "krai_tons": round(krai_tons, 0),
-        "krai_rub": round(krai_tons * 1000.0 * price, 0),
+        "area_ha": round(area_ha, 1),
         "price": price,
+        "base": "к практике вывода чеков из севооборота",
         "note": "Эффект возникает только в годы лимитирования водоподачи",
     }

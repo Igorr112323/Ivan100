@@ -253,6 +253,7 @@ def main() -> None:
     width, height, transform = grid_shape()
     ndwi = load_raster(SENTINEL / f"ndwi_{date}.tif")
     ndvi = load_raster(SENTINEL / f"ndvi_{date}.tif")
+    lswi = load_raster(SENTINEL / f"lswi_{date}.tif")
     valid = load_raster(SENTINEL / f"valid_{date}.tif").astype(bool)
     ndvi_veg = load_raster(SENTINEL / f"ndvi_{veg_date}.tif")
     valid_veg = load_raster(SENTINEL / f"valid_{veg_date}.tif").astype(bool)
@@ -260,12 +261,18 @@ def main() -> None:
     valid_dry = load_raster(SENTINEL / f"valid_{dry_date}.tif").astype(bool)
 
     water = np.isfinite(ndwi) & valid & (ndwi > 0.0)
-    log(f"водное зеркало: {water.mean() * 100:.1f} % полигона")
-    canals = canal_mask(water)
+    # затопление видно двояко: открытым зеркалом либо влагой под сомкнутым пологом
+    flooded = water | (np.isfinite(lswi) & np.isfinite(ndvi) & valid & (lswi > ndvi))
+    rice_px = flooded & (ndvi_veg > NDVI_RICE_MIN) & valid_veg & (ndwi_dry <= 0.0) & valid_dry
+    rice_field = ndi.binary_closing(rice_px, structure=np.ones((3, 3)))
+    log(f"водное зеркало {water.mean() * 100:.1f} % полигона | затопление с учётом полога "
+        f"{flooded.mean() * 100:.1f} % | маска риса {rice_field.mean() * 100:.1f} % "
+        f"({rice_field.sum() * 100.0 / 10_000:.0f} га)")
+    canals = canal_mask(flooded)
     log(f"каналы (полосы до {CANAL_WIDTH_MAX_M:.0f} м): {canals.mean() * 100:.2f} % полигона")
     dist_to_canal = ndi.distance_transform_edt(~canals).astype("float32") * 10.0  # метры
 
-    labels = segment(water)
+    labels = segment(rice_field)
     n_labels = int(labels.max())
     log(f"водораздел выделил {n_labels} контуров")
 
@@ -436,12 +443,13 @@ def main() -> None:
         "name": "Рисовые чеки полигона (оцифрованы по Sentinel-2)",
         "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
         "metadata": {
-            "source": "Контуры получены сегментацией водного зеркала по снимку Sentinel-2 L2A "
-                      "с отбором по признаку риса",
+            "source": "Контуры получены сегментацией маски риса по снимкам Sentinel-2 L2A "
+                      "за три даты сезона 2025",
             "scene_date": date,
             "scene_id": peak["id"],
-            "method": "NDWI > 0 -> морфологическая очистка -> водораздел по карте расстояний -> "
-                      "векторизация -> фильтры рисового чека",
+            "method": "маска риса (затопление в мае-июне + NDVI > 0.55 в июле-августе + "
+                      "сухо в сентябре) -> морфологическая очистка -> водораздел по карте "
+                      "расстояний -> векторизация -> фильтры рисового чека",
             "rice_test": {
                 "flood_date": flood_date,
                 "veg_date": veg_date,
@@ -461,6 +469,7 @@ def main() -> None:
                 "lat": round((AOI["bbox"][1] + AOI["bbox"][3]) / 2, 4),
                 "lon": round((AOI["bbox"][0] + AOI["bbox"][2]) / 2, 4),
             },
+            "rice_mask_ha": round(float(rice_field.sum()) * 100.0 / 10_000.0, 1),
             "count": len(features_out),
             "total_ha": round(sum(areas), 1),
             "min_ha": round(float(np.min(areas)), 2),

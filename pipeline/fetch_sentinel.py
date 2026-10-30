@@ -189,6 +189,7 @@ def main() -> None:
             red = read_merged(items, "red", width, height, dst_transform, Resampling.bilinear)
             green = read_merged(items, "green", width, height, dst_transform, Resampling.bilinear)
             nir = read_merged(items, "nir", width, height, dst_transform, Resampling.bilinear)
+            swir = read_merged(items, "swir16", width, height, dst_transform, Resampling.bilinear)
 
             # SCL: 0 нет данных, 1 насыщенный/дефектный, 3 тень облака, 8/9 облако, 10 перистые
             good = np.zeros((height, width), dtype=bool)
@@ -199,10 +200,14 @@ def main() -> None:
             with np.errstate(invalid="ignore", divide="ignore"):
                 ndvi = (nir - red) / (nir + red)
                 ndwi = (green - nir) / (green + nir)
+                # LSWI — влажность под пологом: затопленный чек виден и тогда, когда
+                # сомкнутый рис закрывает зеркало воды (Xiao et al., 2005)
+                lswi = np.where((nir > 0) & (swir > 0), (nir - swir) / (nir + swir), np.nan)
 
-            valid = (good & np.isfinite(ndvi) & np.isfinite(ndwi)).astype("uint8")
+            valid = (good & np.isfinite(ndvi) & np.isfinite(ndwi) & np.isfinite(lswi)).astype("uint8")
             ndvi = np.where(valid == 1, ndvi, np.nan).astype("float32")
             ndwi = np.where(valid == 1, ndwi, np.nan).astype("float32")
+            lswi = np.where(valid == 1, lswi, np.nan).astype("float32")
 
             profile = {
                 "driver": "GTiff",
@@ -216,7 +221,7 @@ def main() -> None:
                 "predictor": 3,
                 "nodata": float("nan"),
             }
-            for name, arr in (("ndvi", ndvi), ("ndwi", ndwi)):
+            for name, arr in (("ndvi", ndvi), ("ndwi", ndwi), ("lswi", lswi)):
                 with rasterio.open(SENTINEL / f"{name}_{date}.tif", "w", **profile) as dst:
                     dst.write(arr, 1)
             p = profile.copy()
@@ -238,19 +243,24 @@ def main() -> None:
                     "ndvi_mean": round(float(np.nanmean(ndvi)), 4),
                     "ndwi_mean": round(float(np.nanmean(ndwi)), 4),
                     "water_pct": round(float(np.nanmean(ndwi > 0.0)) * 100, 2),
+                    "flood_pct": round(float(np.nanmean((ndwi > 0.0) | (lswi > ndvi))) * 100, 2),
+                    "rice_veg_pct": round(float(np.nanmean(ndvi > 0.55)) * 100, 2),
                 }
             )
             log(f"  кондиционных пикселей {valid.mean() * 100:.1f} %, водное зеркало "
-                f"{np.nanmean(ndwi > 0.0) * 100:.1f} %")
+                f"{np.nanmean(ndwi > 0.0) * 100:.1f} %, затопление с учётом полога "
+                f"{np.nanmean((ndwi > 0.0) | (lswi > ndvi)) * 100:.1f} %, NDVI > 0.55 у "
+                f"{np.nanmean(ndvi > 0.55) * 100:.1f} %")
 
     if not saved:
         die("ни одной кондиционной сцены Sentinel-2 не получено")
 
     # Реальный цветной снимок массива (пик затопления — самая «водная» сцена по NDWI)
-    best = max(saved, key=lambda s: (s["water_pct"] or 0))
+    best = max(saved, key=lambda s: (s["flood_pct"] or 0))
     write_json(SENTINEL / "peak_scene.json", best)
     write_json(SENTINEL / "scenes.json", {"catalogue": catalogue, "saved": saved})
-    log(f"пиковая сцена: {best['date']} (вода {best['water_pct']} %)")
+    log(f"пиковая сцена: {best['date']} (затопление {best['flood_pct']} %, "
+        f"открытая вода {best['water_pct']} %)")
 
     with Env(**GDAL_ENV):
         items = slot_scenes[best["label"]]
