@@ -187,6 +187,28 @@ export function Sheet1({ ctx }: { ctx: Ctx }) {
 
   return (
     <div>
+      <div
+        style={{
+          borderBottom: "1px solid var(--line-hard)",
+          paddingBottom: "var(--s2)",
+          marginBottom: "var(--s3)",
+          display: "flex",
+          gap: "var(--s3)",
+          flexWrap: "wrap",
+          alignItems: "baseline",
+        }}
+      >
+        <div style={{ fontWeight: 600, fontSize: 15 }}>
+          Реальный массив рисовых чеков: цвет чека — срез водоподачи, назначенный оптимизатором
+        </div>
+        <div className="small">
+          {meta
+            ? `${meta.checks.count} чеков · ${num(meta.checks.total_ha, 0)} га · снимок Sentinel-2 от ${fmtDate(
+                meta.imagery?.date ?? meta.model.season_start
+              )}. Нажмите на чек.`
+            : ""}
+        </div>
+      </div>
       <div className="split">
         <div className="bleed-left" style={{ position: "relative" }}>
           <MapView

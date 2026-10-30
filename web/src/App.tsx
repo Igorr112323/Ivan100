@@ -23,7 +23,7 @@ const MOBILE = [
 ];
 
 export default function App() {
-  const [sheet, setSheet] = useState(0);
+  const [sheet, setSheet] = useState(1);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [checksGeo, setChecksGeo] = useState<any>(null);
   const [opt, setOpt] = useState<OptimizeResult | null>(null);
