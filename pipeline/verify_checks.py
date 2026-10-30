@@ -75,7 +75,7 @@ def main() -> None:
     test = meta["rice_test"]
 
     width, height, transform = grid_shape()
-    rgb_arr = np.asarray(Image.open(SENTINEL / "array_rgb.jpg").convert("RGB"))
+    rgb_arr = np.asarray(Image.open(SENTINEL / "array_rgb.jpg").convert("RGB")).copy()
     with rasterio.open(SENTINEL / f"ndvi_{test['veg_date']}.tif") as src:
         ndvi_veg = src.read(1)
     with rasterio.open(SENTINEL / f"ndwi_{test['dry_date']}.tif") as src:
@@ -127,7 +127,7 @@ def main() -> None:
         ov = np.asarray(Image.fromarray((edge * 255).astype("uint8"), mode="L").resize(
             (PANEL, PANEL), Image.NEAREST)) > 96
         for x_off in (0, PANEL + 12, 2 * (PANEL + 12)):
-            box = np.asarray(canvas.crop((x_off, 30, x_off + PANEL, 30 + PANEL)))
+            box = np.asarray(canvas.crop((x_off, 30, x_off + PANEL, 30 + PANEL))).copy()
             box[ov] = SEAL
             canvas.paste(Image.fromarray(box, mode="RGB"), (x_off, 30))
 
