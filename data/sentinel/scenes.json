@@ -5,19 +5,11 @@
    "window": "2025-05-01..2025-06-05",
    "start": "2025-05-01",
    "end": "2025-06-05",
-   "found": 44,
+   "found": 22,
    "tiles": [
-    "MGRS-37TCL",
     "MGRS-37TDL"
    ],
    "scenes": [
-    {
-     "id": "S2C_37TCL_20250522_0_L2A",
-     "datetime": "2025-05-22T08:37:47.658000Z",
-     "platform": "sentinel-2c",
-     "cloud_cover": 4.021,
-     "nodata_pct": 0
-    },
     {
      "id": "S2C_37TDL_20250522_0_L2A",
      "datetime": "2025-05-22T08:37:42.906000Z",
@@ -32,7 +24,7 @@
    "window": "2025-06-06..2025-07-10",
    "start": "2025-06-06",
    "end": "2025-07-10",
-   "found": 42,
+   "found": 21,
    "tiles": [
     "MGRS-37TDL"
    ],
@@ -51,7 +43,7 @@
    "window": "2025-07-11..2025-08-05",
    "start": "2025-07-11",
    "end": "2025-08-05",
-   "found": 32,
+   "found": 16,
    "tiles": [
     "MGRS-37TDL"
    ],
@@ -70,10 +62,9 @@
    "window": "2025-08-06..2025-08-31",
    "start": "2025-08-06",
    "end": "2025-08-31",
-   "found": 28,
+   "found": 14,
    "tiles": [
-    "MGRS-37TDL",
-    "MGRS-37TCL"
+    "MGRS-37TDL"
    ],
    "scenes": [
     {
@@ -81,13 +72,6 @@
      "datetime": "2025-08-19T08:27:41.811000Z",
      "platform": "sentinel-2a",
      "cloud_cover": 0.104,
-     "nodata_pct": 0
-    },
-    {
-     "id": "S2A_37TCL_20250822_1_L2A",
-     "datetime": "2025-08-22T08:37:43.206000Z",
-     "platform": "sentinel-2a",
-     "cloud_cover": 1.319,
      "nodata_pct": 0
     }
    ]
@@ -97,10 +81,9 @@
    "window": "2025-09-01..2025-09-30",
    "start": "2025-09-01",
    "end": "2025-09-30",
-   "found": 36,
+   "found": 18,
    "tiles": [
-    "MGRS-37TDL",
-    "MGRS-37TCL"
+    "MGRS-37TDL"
    ],
    "scenes": [
     {
@@ -109,13 +92,6 @@
      "platform": "sentinel-2b",
      "cloud_cover": 0.229,
      "nodata_pct": 43.47
-    },
-    {
-     "id": "S2B_37TCL_20250924_2_L2A",
-     "datetime": "2025-09-24T08:37:29.064000Z",
-     "platform": "sentinel-2b",
-     "cloud_cover": 10.971,
-     "nodata_pct": 4.87
     }
    ]
   }
@@ -123,17 +99,16 @@
  "saved": [
   {
    "date": "2025-05-22",
-   "id": "S2C_37TCL_20250522_0_L2A",
+   "id": "S2C_37TDL_20250522_0_L2A",
    "label": "май–начало июня: всходы, затопление",
    "tiles": [
-    "MGRS-37TCL",
     "MGRS-37TDL"
    ],
-   "cloud_cover_pct": 4.021,
-   "valid_pct": 98.66,
-   "ndvi_mean": 0.362,
-   "ndwi_mean": -0.2983,
-   "water_pct": 24.12
+   "cloud_cover_pct": 5.876,
+   "valid_pct": 98.93,
+   "ndvi_mean": 0.3927,
+   "ndwi_mean": -0.3811,
+   "water_pct": 5.81
   },
   {
    "date": "2025-07-10",
@@ -143,10 +118,10 @@
     "MGRS-37TDL"
    ],
    "cloud_cover_pct": 0.113,
-   "valid_pct": 61.87,
-   "ndvi_mean": 0.487,
-   "ndwi_mean": -0.3943,
-   "water_pct": 11.28
+   "valid_pct": 98.93,
+   "ndvi_mean": 0.6405,
+   "ndwi_mean": -0.5864,
+   "water_pct": 0.29
   },
   {
    "date": "2025-07-28",
@@ -156,38 +131,36 @@
     "MGRS-37TDL"
    ],
    "cloud_cover_pct": 0.082,
-   "valid_pct": 61.87,
-   "ndvi_mean": 0.4955,
-   "ndwi_mean": -0.4179,
-   "water_pct": 11.16
+   "valid_pct": 98.93,
+   "ndvi_mean": 0.644,
+   "ndwi_mean": -0.5976,
+   "water_pct": 0.37
   },
   {
    "date": "2025-08-19",
    "id": "S2A_37TDL_20250819_0_L2A",
    "label": "август: цветение, налив зерна",
    "tiles": [
-    "MGRS-37TDL",
-    "MGRS-37TCL"
+    "MGRS-37TDL"
    ],
    "cloud_cover_pct": 0.104,
-   "valid_pct": 98.66,
-   "ndvi_mean": 0.4637,
-   "ndwi_mean": -0.3792,
-   "water_pct": 21.67
+   "valid_pct": 98.93,
+   "ndvi_mean": 0.5863,
+   "ndwi_mean": -0.5409,
+   "water_pct": 1.46
   },
   {
    "date": "2025-09-24",
    "id": "S2B_37TDL_20250924_1_L2A",
    "label": "сентябрь: созревание, сброс воды",
    "tiles": [
-    "MGRS-37TDL",
-    "MGRS-37TCL"
+    "MGRS-37TDL"
    ],
    "cloud_cover_pct": 0.229,
-   "valid_pct": 98.66,
-   "ndvi_mean": 0.3402,
-   "ndwi_mean": -0.3242,
-   "water_pct": 21.67
+   "valid_pct": 98.93,
+   "ndvi_mean": 0.3464,
+   "ndwi_mean": -0.4391,
+   "water_pct": 0.46
   }
  ]
 }

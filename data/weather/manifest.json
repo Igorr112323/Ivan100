@@ -1,9 +1,9 @@
 {
  "source": "ERA5 (ECMWF) через Historical Weather API, агрегация почасовых значений в суточные",
  "point": {
-  "lat": 45.5,
-  "lon": 37.75,
-  "name": "Рисовый массив в дельте Кубани, Краснодарский край"
+  "lat": 45.46817,
+  "lon": 38.18074,
+  "name": "Рисовый массив, Красноармейский район, ст. Полтавская"
  },
  "timezone": "Europe/Moscow",
  "variables": [
@@ -23,23 +23,23 @@
   {
    "year": 2020,
    "days": 153,
-   "et0_sum_mm": 727.7,
-   "precip_sum_mm": 267.5,
-   "tmean_c": 22.05
+   "et0_sum_mm": 777.1,
+   "precip_sum_mm": 308.6,
+   "tmean_c": 22.36
   },
   {
    "year": 2024,
    "days": 153,
-   "et0_sum_mm": 872.3,
-   "precip_sum_mm": 133.0,
-   "tmean_c": 23.59
+   "et0_sum_mm": 896.1,
+   "precip_sum_mm": 153.2,
+   "tmean_c": 23.69
   },
   {
    "year": 2025,
    "days": 153,
-   "et0_sum_mm": 723.3,
-   "precip_sum_mm": 306.1,
-   "tmean_c": 21.55
+   "et0_sum_mm": 812.2,
+   "precip_sum_mm": 254.8,
+   "tmean_c": 22.19
   }
  ]
 }

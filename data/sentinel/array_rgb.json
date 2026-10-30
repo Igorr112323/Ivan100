@@ -1,21 +1,20 @@
 {
  "image": "array_rgb.jpg",
- "width": 1872,
- "height": 2211,
+ "width": 1171,
+ "height": 1150,
  "bounds": [
   [
-   45.4,
-   37.63
+   45.41617,
+   38.10574
   ],
   [
-   45.6,
-   37.87
+   45.52017,
+   38.25574
   ]
  ],
  "date": "2025-05-22",
- "scene": "S2C_37TCL_20250522_0_L2A",
+ "scene": "S2C_37TDL_20250522_0_L2A",
  "tiles": [
-  "MGRS-37TCL",
   "MGRS-37TDL"
  ],
  "source": "Sentinel-2 L2A, Copernicus/ESA, COG на AWS Open Data",
