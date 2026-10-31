@@ -27,27 +27,12 @@
   }
  },
  "counts": {
-  "checked": 53,
-  "rice": 51
+  "checked": 51,
+  "rice": 49
  },
  "checks": [
   {
    "id": 1,
-   "area_ha": 11.99,
-   "open_water_pct": 5.6,
-   "wet_june_pct": 62.9,
-   "wet_june2_pct": 42.2,
-   "moist_pct": 79.9,
-   "moist2_pct": 50.6,
-   "ndvi_july": 0.747,
-   "ndwi_sept": -0.421,
-   "dry_sept_pct": 99.9,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.747
-  },
-  {
-   "id": 2,
    "area_ha": 12.11,
    "open_water_pct": 57.5,
    "wet_june_pct": 82.9,
@@ -62,7 +47,7 @@
    "ndvi_july_no_bright": 0.817
   },
   {
-   "id": 3,
+   "id": 2,
    "area_ha": 35.38,
    "open_water_pct": 19.1,
    "wet_june_pct": 60.5,
@@ -77,7 +62,7 @@
    "ndvi_july_no_bright": 0.718
   },
   {
-   "id": 4,
+   "id": 3,
    "area_ha": 32.76,
    "open_water_pct": 8.5,
    "wet_june_pct": 41.7,
@@ -92,7 +77,7 @@
    "ndvi_july_no_bright": 0.763
   },
   {
-   "id": 5,
+   "id": 4,
    "area_ha": 12.75,
    "open_water_pct": 0.0,
    "wet_june_pct": 56.9,
@@ -107,22 +92,7 @@
    "ndvi_july_no_bright": 0.792
   },
   {
-   "id": 6,
-   "area_ha": 11.48,
-   "open_water_pct": 2.6,
-   "wet_june_pct": 74.7,
-   "wet_june2_pct": 38.6,
-   "moist_pct": 93.5,
-   "moist2_pct": 79.2,
-   "ndvi_july": 0.811,
-   "ndwi_sept": -0.354,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.811
-  },
-  {
-   "id": 7,
+   "id": 5,
    "area_ha": 12.34,
    "open_water_pct": 48.8,
    "wet_june_pct": 75.8,
@@ -137,7 +107,7 @@
    "ndvi_july_no_bright": 0.774
   },
   {
-   "id": 8,
+   "id": 6,
    "area_ha": 12.77,
    "open_water_pct": 18.5,
    "wet_june_pct": 69.5,
@@ -152,7 +122,7 @@
    "ndvi_july_no_bright": 0.787
   },
   {
-   "id": 9,
+   "id": 7,
    "area_ha": 18.37,
    "open_water_pct": 23.5,
    "wet_june_pct": 61.9,
@@ -167,7 +137,7 @@
    "ndvi_july_no_bright": 0.802
   },
   {
-   "id": 10,
+   "id": 8,
    "area_ha": 16.92,
    "open_water_pct": 16.5,
    "wet_june_pct": 53.5,
@@ -182,7 +152,7 @@
    "ndvi_july_no_bright": 0.772
   },
   {
-   "id": 11,
+   "id": 9,
    "area_ha": 15.43,
    "open_water_pct": 30.8,
    "wet_june_pct": 58.8,
@@ -197,7 +167,7 @@
    "ndvi_july_no_bright": 0.817
   },
   {
-   "id": 12,
+   "id": 10,
    "area_ha": 27.02,
    "open_water_pct": 2.4,
    "wet_june_pct": 84.6,
@@ -212,37 +182,7 @@
    "ndvi_july_no_bright": 0.754
   },
   {
-   "id": 13,
-   "area_ha": 10.29,
-   "open_water_pct": 33.5,
-   "wet_june_pct": 82.1,
-   "wet_june2_pct": 41.9,
-   "moist_pct": 79.8,
-   "moist2_pct": 64.5,
-   "ndvi_july": 0.821,
-   "ndwi_sept": -0.383,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.821
-  },
-  {
-   "id": 14,
-   "area_ha": 56.59,
-   "open_water_pct": 0.5,
-   "wet_june_pct": 72.7,
-   "wet_june2_pct": 68.5,
-   "moist_pct": 88.6,
-   "moist2_pct": 80.6,
-   "ndvi_july": 0.794,
-   "ndwi_sept": -0.471,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.794
-  },
-  {
-   "id": 15,
+   "id": 11,
    "area_ha": 22.14,
    "open_water_pct": 68.8,
    "wet_june_pct": 87.4,
@@ -257,7 +197,7 @@
    "ndvi_july_no_bright": 0.768
   },
   {
-   "id": 16,
+   "id": 12,
    "area_ha": 21.42,
    "open_water_pct": 25.8,
    "wet_june_pct": 81.7,
@@ -272,7 +212,7 @@
    "ndvi_july_no_bright": 0.83
   },
   {
-   "id": 17,
+   "id": 13,
    "area_ha": 40.67,
    "open_water_pct": 10.8,
    "wet_june_pct": 73.1,
@@ -287,22 +227,7 @@
    "ndvi_july_no_bright": 0.751
   },
   {
-   "id": 18,
-   "area_ha": 48.05,
-   "open_water_pct": 6.2,
-   "wet_june_pct": 78.8,
-   "wet_june2_pct": 39.8,
-   "moist_pct": 87.0,
-   "moist2_pct": 82.4,
-   "ndvi_july": 0.824,
-   "ndwi_sept": -0.376,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.824
-  },
-  {
-   "id": 19,
+   "id": 14,
    "area_ha": 32.77,
    "open_water_pct": 36.1,
    "wet_june_pct": 75.7,
@@ -317,7 +242,7 @@
    "ndvi_july_no_bright": 0.827
   },
   {
-   "id": 20,
+   "id": 15,
    "area_ha": 30.86,
    "open_water_pct": 79.7,
    "wet_june_pct": 87.5,
@@ -332,7 +257,7 @@
    "ndvi_july_no_bright": 0.829
   },
   {
-   "id": 21,
+   "id": 16,
    "area_ha": 16.27,
    "open_water_pct": 22.8,
    "wet_june_pct": 84.2,
@@ -347,7 +272,7 @@
    "ndvi_july_no_bright": 0.838
   },
   {
-   "id": 22,
+   "id": 17,
    "area_ha": 19.67,
    "open_water_pct": 0.0,
    "wet_june_pct": 66.4,
@@ -362,7 +287,7 @@
    "ndvi_july_no_bright": 0.831
   },
   {
-   "id": 23,
+   "id": 18,
    "area_ha": 23.52,
    "open_water_pct": 37.7,
    "wet_june_pct": 70.5,
@@ -377,22 +302,7 @@
    "ndvi_july_no_bright": 0.777
   },
   {
-   "id": 24,
-   "area_ha": 11.62,
-   "open_water_pct": 15.4,
-   "wet_june_pct": 76.7,
-   "wet_june2_pct": 49.0,
-   "moist_pct": 82.8,
-   "moist2_pct": 59.5,
-   "ndvi_july": 0.841,
-   "ndwi_sept": -0.37,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.841
-  },
-  {
-   "id": 25,
+   "id": 19,
    "area_ha": 28.51,
    "open_water_pct": 0.0,
    "wet_june_pct": 58.0,
@@ -407,22 +317,7 @@
    "ndvi_july_no_bright": 0.782
   },
   {
-   "id": 26,
-   "area_ha": 11.32,
-   "open_water_pct": 45.0,
-   "wet_june_pct": 67.0,
-   "wet_june2_pct": 44.0,
-   "moist_pct": 80.6,
-   "moist2_pct": 70.7,
-   "ndvi_july": 0.793,
-   "ndwi_sept": -0.401,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.4,
-   "ndvi_july_no_bright": 0.795
-  },
-  {
-   "id": 27,
+   "id": 20,
    "area_ha": 42.17,
    "open_water_pct": 10.0,
    "wet_june_pct": 65.5,
@@ -437,52 +332,7 @@
    "ndvi_july_no_bright": 0.807
   },
   {
-   "id": 28,
-   "area_ha": 10.59,
-   "open_water_pct": 0.0,
-   "wet_june_pct": 54.0,
-   "wet_june2_pct": 50.4,
-   "moist_pct": 67.2,
-   "moist2_pct": 62.8,
-   "ndvi_july": 0.772,
-   "ndwi_sept": -0.39,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.772
-  },
-  {
-   "id": 29,
-   "area_ha": 11.34,
-   "open_water_pct": 4.0,
-   "wet_june_pct": 69.5,
-   "wet_june2_pct": 37.7,
-   "moist_pct": 81.0,
-   "moist2_pct": 66.7,
-   "ndvi_july": 0.761,
-   "ndwi_sept": -0.384,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.761
-  },
-  {
-   "id": 30,
-   "area_ha": 47.36,
-   "open_water_pct": 32.7,
-   "wet_june_pct": 74.1,
-   "wet_june2_pct": 39.2,
-   "moist_pct": 76.9,
-   "moist2_pct": 71.6,
-   "ndvi_july": 0.768,
-   "ndwi_sept": -0.371,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.768
-  },
-  {
-   "id": 31,
+   "id": 21,
    "area_ha": 54.97,
    "open_water_pct": 2.4,
    "wet_june_pct": 69.9,
@@ -497,7 +347,7 @@
    "ndvi_july_no_bright": 0.781
   },
   {
-   "id": 32,
+   "id": 22,
    "area_ha": 25.27,
    "open_water_pct": 2.1,
    "wet_june_pct": 71.7,
@@ -512,7 +362,7 @@
    "ndvi_july_no_bright": 0.776
   },
   {
-   "id": 33,
+   "id": 23,
    "area_ha": 18.43,
    "open_water_pct": 29.6,
    "wet_june_pct": 71.2,
@@ -527,7 +377,7 @@
    "ndvi_july_no_bright": 0.754
   },
   {
-   "id": 34,
+   "id": 24,
    "area_ha": 20.69,
    "open_water_pct": 2.7,
    "wet_june_pct": 73.2,
@@ -542,7 +392,7 @@
    "ndvi_july_no_bright": 0.833
   },
   {
-   "id": 35,
+   "id": 25,
    "area_ha": 14.47,
    "open_water_pct": 0.8,
    "wet_june_pct": 80.6,
@@ -557,7 +407,7 @@
    "ndvi_july_no_bright": 0.829
   },
   {
-   "id": 36,
+   "id": 26,
    "area_ha": 22.34,
    "open_water_pct": 29.4,
    "wet_june_pct": 88.3,
@@ -572,22 +422,7 @@
    "ndvi_july_no_bright": 0.828
   },
   {
-   "id": 37,
-   "area_ha": 10.06,
-   "open_water_pct": 32.4,
-   "wet_june_pct": 86.9,
-   "wet_june2_pct": 88.2,
-   "moist_pct": 88.5,
-   "moist2_pct": 82.2,
-   "ndvi_july": 0.756,
-   "ndwi_sept": -0.372,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.756
-  },
-  {
-   "id": 38,
+   "id": 27,
    "area_ha": 54.43,
    "open_water_pct": 3.9,
    "wet_june_pct": 49.1,
@@ -602,22 +437,7 @@
    "ndvi_july_no_bright": 0.844
   },
   {
-   "id": 39,
-   "area_ha": 11.47,
-   "open_water_pct": 49.3,
-   "wet_june_pct": 60.3,
-   "wet_june2_pct": 45.2,
-   "moist_pct": 64.8,
-   "moist2_pct": 53.9,
-   "ndvi_july": 0.809,
-   "ndwi_sept": -0.527,
-   "dry_sept_pct": 100.0,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.809
-  },
-  {
-   "id": 40,
+   "id": 28,
    "area_ha": 38.95,
    "open_water_pct": 49.1,
    "wet_june_pct": 84.1,
@@ -632,7 +452,7 @@
    "ndvi_july_no_bright": 0.772
   },
   {
-   "id": 41,
+   "id": 29,
    "area_ha": 21.32,
    "open_water_pct": 0.0,
    "wet_june_pct": 52.3,
@@ -647,7 +467,7 @@
    "ndvi_july_no_bright": 0.829
   },
   {
-   "id": 42,
+   "id": 30,
    "area_ha": 23.97,
    "open_water_pct": 57.8,
    "wet_june_pct": 83.4,
@@ -662,7 +482,7 @@
    "ndvi_july_no_bright": 0.772
   },
   {
-   "id": 43,
+   "id": 31,
    "area_ha": 12.06,
    "open_water_pct": 18.7,
    "wet_june_pct": 66.3,
@@ -677,7 +497,7 @@
    "ndvi_july_no_bright": 0.7
   },
   {
-   "id": 44,
+   "id": 32,
    "area_ha": 58.6,
    "open_water_pct": 54.3,
    "wet_june_pct": 73.6,
@@ -692,7 +512,7 @@
    "ndvi_july_no_bright": 0.716
   },
   {
-   "id": 45,
+   "id": 33,
    "area_ha": 18.13,
    "open_water_pct": 25.0,
    "wet_june_pct": 70.3,
@@ -707,7 +527,7 @@
    "ndvi_july_no_bright": 0.702
   },
   {
-   "id": 46,
+   "id": 34,
    "area_ha": 41.33,
    "open_water_pct": 55.3,
    "wet_june_pct": 75.2,
@@ -722,7 +542,7 @@
    "ndvi_july_no_bright": 0.748
   },
   {
-   "id": 47,
+   "id": 35,
    "area_ha": 14.52,
    "open_water_pct": 32.0,
    "wet_june_pct": 81.3,
@@ -737,7 +557,7 @@
    "ndvi_july_no_bright": 0.815
   },
   {
-   "id": 48,
+   "id": 36,
    "area_ha": 19.87,
    "open_water_pct": 54.8,
    "wet_june_pct": 78.3,
@@ -752,7 +572,7 @@
    "ndvi_july_no_bright": 0.707
   },
   {
-   "id": 49,
+   "id": 37,
    "area_ha": 47.31,
    "open_water_pct": 4.1,
    "wet_june_pct": 64.6,
@@ -767,7 +587,7 @@
    "ndvi_july_no_bright": 0.828
   },
   {
-   "id": 50,
+   "id": 38,
    "area_ha": 17.07,
    "open_water_pct": 0.0,
    "wet_june_pct": 69.7,
@@ -782,7 +602,7 @@
    "ndvi_july_no_bright": 0.824
   },
   {
-   "id": 51,
+   "id": 39,
    "area_ha": 19.43,
    "open_water_pct": 64.0,
    "wet_june_pct": 92.5,
@@ -797,7 +617,7 @@
    "ndvi_july_no_bright": 0.782
   },
   {
-   "id": 52,
+   "id": 40,
    "area_ha": 47.09,
    "open_water_pct": 64.7,
    "wet_june_pct": 91.9,
@@ -812,7 +632,7 @@
    "ndvi_july_no_bright": 0.808
   },
   {
-   "id": 53,
+   "id": 41,
    "area_ha": 14.19,
    "open_water_pct": 0.1,
    "wet_june_pct": 80.4,
@@ -825,6 +645,156 @@
    "rice": true,
    "bright_pct": 0.0,
    "ndvi_july_no_bright": 0.855
+  },
+  {
+   "id": 42,
+   "area_ha": 29.1,
+   "open_water_pct": 17.7,
+   "wet_june_pct": 81.7,
+   "wet_june2_pct": 53.6,
+   "moist_pct": 91.1,
+   "moist2_pct": 81.6,
+   "ndvi_july": 0.804,
+   "ndwi_sept": -0.39,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.804
+  },
+  {
+   "id": 43,
+   "area_ha": 17.09,
+   "open_water_pct": 32.3,
+   "wet_june_pct": 88.7,
+   "wet_june2_pct": 71.9,
+   "moist_pct": 92.1,
+   "moist2_pct": 76.8,
+   "ndvi_july": 0.832,
+   "ndwi_sept": -0.357,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.832
+  },
+  {
+   "id": 44,
+   "area_ha": 18.15,
+   "open_water_pct": 5.8,
+   "wet_june_pct": 85.3,
+   "wet_june2_pct": 59.9,
+   "moist_pct": 91.8,
+   "moist2_pct": 81.1,
+   "ndvi_july": 0.814,
+   "ndwi_sept": -0.427,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.814
+  },
+  {
+   "id": 45,
+   "area_ha": 22.13,
+   "open_water_pct": 0.6,
+   "wet_june_pct": 76.5,
+   "wet_june2_pct": 74.9,
+   "moist_pct": 91.3,
+   "moist2_pct": 84.2,
+   "ndvi_july": 0.766,
+   "ndwi_sept": -0.468,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.767
+  },
+  {
+   "id": 46,
+   "area_ha": 18.09,
+   "open_water_pct": 0.7,
+   "wet_june_pct": 77.1,
+   "wet_june2_pct": 73.9,
+   "moist_pct": 93.5,
+   "moist2_pct": 81.1,
+   "ndvi_july": 0.808,
+   "ndwi_sept": -0.468,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.808
+  },
+  {
+   "id": 47,
+   "area_ha": 16.3,
+   "open_water_pct": 0.0,
+   "wet_june_pct": 63.4,
+   "wet_june2_pct": 55.0,
+   "moist_pct": 79.4,
+   "moist2_pct": 75.2,
+   "ndvi_july": 0.816,
+   "ndwi_sept": -0.476,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.816
+  },
+  {
+   "id": 48,
+   "area_ha": 29.05,
+   "open_water_pct": 8.8,
+   "wet_june_pct": 78.0,
+   "wet_june2_pct": 48.0,
+   "moist_pct": 85.6,
+   "moist2_pct": 80.3,
+   "ndvi_july": 0.804,
+   "ndwi_sept": -0.379,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.804
+  },
+  {
+   "id": 49,
+   "area_ha": 16.23,
+   "open_water_pct": 0.0,
+   "wet_june_pct": 81.2,
+   "wet_june2_pct": 22.8,
+   "moist_pct": 91.6,
+   "moist2_pct": 85.5,
+   "ndvi_july": 0.869,
+   "ndwi_sept": -0.369,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.869
+  },
+  {
+   "id": 50,
+   "area_ha": 16.43,
+   "open_water_pct": 53.5,
+   "wet_june_pct": 87.3,
+   "wet_june2_pct": 45.4,
+   "moist_pct": 84.3,
+   "moist2_pct": 79.2,
+   "ndvi_july": 0.779,
+   "ndwi_sept": -0.366,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.779
+  },
+  {
+   "id": 51,
+   "area_ha": 32.38,
+   "open_water_pct": 0.3,
+   "wet_june_pct": 62.1,
+   "wet_june2_pct": 0.8,
+   "moist_pct": 86.3,
+   "moist2_pct": 80.5,
+   "ndvi_july": 0.828,
+   "ndwi_sept": -0.361,
+   "dry_sept_pct": 100.0,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.828
   }
  ],
  "shots": [
@@ -832,132 +802,6 @@
    "group": "прежние",
    "id": 33,
    "image": "proof_33.png",
-   "wet_june_pct": 71.2,
-   "open_water_pct": 29.6,
-   "moist_pct": 75.6,
-   "wet_june2_pct": 42.9,
-   "ndvi_july": 0.754,
-   "ndwi_sept": -0.359,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.754
-  },
-  {
-   "group": "прежние",
-   "id": 47,
-   "image": "proof_47.png",
-   "wet_june_pct": 81.3,
-   "open_water_pct": 32.0,
-   "moist_pct": 91.2,
-   "wet_june2_pct": 52.5,
-   "ndvi_july": 0.815,
-   "ndwi_sept": -0.451,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.815
-  },
-  {
-   "group": "прежние",
-   "id": 19,
-   "image": "proof_19.png",
-   "wet_june_pct": 75.7,
-   "open_water_pct": 36.1,
-   "moist_pct": 80.5,
-   "wet_june2_pct": 42.8,
-   "ndvi_july": 0.827,
-   "ndwi_sept": -0.376,
-   "rice": false,
-   "bright_pct": 0.7,
-   "ndvi_july_no_bright": 0.827
-  },
-  {
-   "group": "прежние",
-   "id": 9,
-   "image": "proof_9.png",
-   "wet_june_pct": 61.9,
-   "open_water_pct": 23.5,
-   "moist_pct": 75.9,
-   "wet_june2_pct": 26.4,
-   "ndvi_july": 0.802,
-   "ndwi_sept": -0.349,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.802
-  },
-  {
-   "group": "прежние",
-   "id": 48,
-   "image": "proof_48.png",
-   "wet_june_pct": 78.3,
-   "open_water_pct": 54.8,
-   "moist_pct": 81.1,
-   "wet_june2_pct": 65.1,
-   "ndvi_july": 0.707,
-   "ndwi_sept": -0.381,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.707
-  },
-  {
-   "group": "новые",
-   "id": 40,
-   "image": "proof_40.png",
-   "wet_june_pct": 84.1,
-   "open_water_pct": 49.1,
-   "moist_pct": 78.9,
-   "wet_june2_pct": 77.9,
-   "ndvi_july": 0.772,
-   "ndwi_sept": -0.362,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.772
-  },
-  {
-   "group": "новые",
-   "id": 5,
-   "image": "proof_5.png",
-   "wet_june_pct": 56.9,
-   "open_water_pct": 0.0,
-   "moist_pct": 89.5,
-   "wet_june2_pct": 23.5,
-   "ndvi_july": 0.792,
-   "ndwi_sept": -0.403,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.792
-  },
-  {
-   "group": "новые",
-   "id": 27,
-   "image": "proof_27.png",
-   "wet_june_pct": 65.5,
-   "open_water_pct": 10.0,
-   "moist_pct": 88.6,
-   "wet_june2_pct": 0.5,
-   "ndvi_july": 0.807,
-   "ndwi_sept": -0.379,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.807
-  },
-  {
-   "group": "новые",
-   "id": 44,
-   "image": "proof_44.png",
-   "wet_june_pct": 73.6,
-   "open_water_pct": 54.3,
-   "moist_pct": 74.9,
-   "wet_june2_pct": 64.8,
-   "ndvi_july": 0.716,
-   "ndwi_sept": -0.377,
-   "rice": true,
-   "bright_pct": 0.0,
-   "ndvi_july_no_bright": 0.716
-  },
-  {
-   "group": "новые",
-   "id": 45,
-   "image": "proof_45.png",
    "wet_june_pct": 70.3,
    "open_water_pct": 25.0,
    "moist_pct": 75.1,
@@ -967,6 +811,132 @@
    "rice": true,
    "bright_pct": 0.1,
    "ndvi_july_no_bright": 0.702
+  },
+  {
+   "group": "прежние",
+   "id": 47,
+   "image": "proof_47.png",
+   "wet_june_pct": 63.4,
+   "open_water_pct": 0.0,
+   "moist_pct": 79.4,
+   "wet_june2_pct": 55.0,
+   "ndvi_july": 0.816,
+   "ndwi_sept": -0.476,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.816
+  },
+  {
+   "group": "прежние",
+   "id": 19,
+   "image": "proof_19.png",
+   "wet_june_pct": 58.0,
+   "open_water_pct": 0.0,
+   "moist_pct": 88.8,
+   "wet_june2_pct": 0.2,
+   "ndvi_july": 0.782,
+   "ndwi_sept": -0.364,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.782
+  },
+  {
+   "group": "прежние",
+   "id": 9,
+   "image": "proof_9.png",
+   "wet_june_pct": 58.8,
+   "open_water_pct": 30.8,
+   "moist_pct": 81.9,
+   "wet_june2_pct": 27.1,
+   "ndvi_july": 0.817,
+   "ndwi_sept": -0.368,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.817
+  },
+  {
+   "group": "прежние",
+   "id": 48,
+   "image": "proof_48.png",
+   "wet_june_pct": 78.0,
+   "open_water_pct": 8.8,
+   "moist_pct": 85.6,
+   "wet_june2_pct": 48.0,
+   "ndvi_july": 0.804,
+   "ndwi_sept": -0.379,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.804
+  },
+  {
+   "group": "новые",
+   "id": 40,
+   "image": "proof_40.png",
+   "wet_june_pct": 91.9,
+   "open_water_pct": 64.7,
+   "moist_pct": 90.9,
+   "wet_june2_pct": 49.8,
+   "ndvi_july": 0.808,
+   "ndwi_sept": -0.353,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.808
+  },
+  {
+   "group": "новые",
+   "id": 5,
+   "image": "proof_5.png",
+   "wet_june_pct": 75.8,
+   "open_water_pct": 48.8,
+   "moist_pct": 79.7,
+   "wet_june2_pct": 73.9,
+   "ndvi_july": 0.774,
+   "ndwi_sept": -0.393,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.774
+  },
+  {
+   "group": "новые",
+   "id": 27,
+   "image": "proof_27.png",
+   "wet_june_pct": 49.1,
+   "open_water_pct": 3.9,
+   "moist_pct": 79.3,
+   "wet_june2_pct": 7.9,
+   "ndvi_july": 0.844,
+   "ndwi_sept": -0.347,
+   "rice": false,
+   "bright_pct": 1.2,
+   "ndvi_july_no_bright": 0.844
+  },
+  {
+   "group": "новые",
+   "id": 44,
+   "image": "proof_44.png",
+   "wet_june_pct": 85.3,
+   "open_water_pct": 5.8,
+   "moist_pct": 91.8,
+   "wet_june2_pct": 59.9,
+   "ndvi_july": 0.814,
+   "ndwi_sept": -0.427,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.814
+  },
+  {
+   "group": "новые",
+   "id": 45,
+   "image": "proof_45.png",
+   "wet_june_pct": 76.5,
+   "open_water_pct": 0.6,
+   "moist_pct": 91.3,
+   "wet_june2_pct": 74.9,
+   "ndvi_july": 0.766,
+   "ndwi_sept": -0.468,
+   "rice": true,
+   "bright_pct": 0.0,
+   "ndvi_july_no_bright": 0.767
   }
  ]
 }
