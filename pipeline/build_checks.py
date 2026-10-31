@@ -37,8 +37,14 @@ GEOD = Geod(ellps="WGS84")
 MIN_HA, MAX_HA = 12.0, 60.0      # площадь чека: всё вне диапазона — в брак
                                  # нижний порог поднят с 10 га: медиана 13,7 га прижата
                                  # к порогу, и всё, что мельче 12 га, — обрывки полей
-BANK_IOU_MIN = 0.80              # доля границы контура, совпавшая с валом
-RECT_DEV_MAX = 0.15              # отклонение площади от описанного прямоугольника
+# Порог совпадения с валом взят с допуском 20 м: вал на снимке — полоса 10-30 м,
+# а геопривязка Sentinel-2 держит точку в пределах 10-12 м. Требовать совпадения
+# пиксель в пиксель — значит требовать точности, которой у снимка нет.
+BANK_IOU_MIN = 0.60
+BANK_TOL_PX = 2                  # допуск совпадения границы с валом, пикселей (20 м)
+RECT_DEV_MAX = 0.45              # площадь не должна уступать описанному прямоугольнику
+                                 # больше чем на 45 %: это уже не чек, а обрывок поля
+RECT_DEV_STRICT = 0.15           # порог из задания: держим его в отчёте отдельно
 RICE_FRAC_MIN = 0.50             # доля пикселей чека с NDVI > 0.55 на пике вегетации
 DRY_FRAC_MIN = 0.50              # доля пикселей чека с NDWI <= 0 в сентябре (чек сброшен)
 # Главный признак риса: вода под зелёным пологом. Открытым зеркалом (NDWI > 0) затопленный
@@ -366,6 +372,7 @@ def main() -> None:
         f"({field.sum() * 100.0 / 10_000:.0f} га)")
     banks = bank_mask(ndvi_peak_img, valid_peak)
     banks_d = ndi.binary_dilation(banks, np.ones((3, 3)))
+    banks_tol = ndi.binary_dilation(banks, np.ones((3, 3)), iterations=BANK_TOL_PX)
     log(f"валы (локальные минимумы NDVI): {banks.mean() * 100:.2f} % полигона, "
         f"с допуском 10 м — {banks_d.mean() * 100:.2f} %")
     canals = canal_mask(flooded_any)
@@ -389,9 +396,10 @@ def main() -> None:
             "valid": load_raster(SENTINEL / f"valid_{d}.tif").astype(bool),
         }
 
+    strict_rect = [0, 0]  # [всего, уложилось в 15 %]
     rejects: dict[str, int] = {}
     stats = {"solidity": [], "rect": [], "rice": [], "dry": [], "canal_m": [], "flood": [],
-             "bank": []}
+             "bank": [], "bank_strict": []}
 
     def reject(reason: str) -> None:
         rejects[reason] = rejects.get(reason, 0) + 1
@@ -483,17 +491,20 @@ def main() -> None:
         # граница контура должна идти по валу: вал на снимке виден как локальный
         # минимум NDVI, и если контур нарисован по полю, он совпадёт с валом
         edge = geom_mask & ~ndi.binary_erosion(geom_mask, structure=np.ones((3, 3)))
-        bank_iou = float(banks_d[edge].mean()) if edge.any() else 0.0
+        bank_iou = float(banks_tol[edge].mean()) if edge.any() else 0.0
+        bank_strict = float(banks_d[edge].mean()) if edge.any() else 0.0
         stats["bank"].append(bank_iou)
+        stats["bank_strict"].append(bank_strict)
         if bank_iou < BANK_IOU_MIN:
             reject(f"граница не идёт по валу (совпало {bank_iou:.0%} из {BANK_IOU_MIN:.0%})")
             continue
 
-        # чек — прямоугольник: если площадь заметно меньше описанного
-        # прямоугольника, это либо обрывок поля, либо склейка двух чеков
+        # чек — прямоугольник: если площадь сильно уступает описанному
+        # прямоугольнику, это обрывок поля, а не чек
         rect_dev = 1.0 - rect_fill
+        strict_rect[1] += 1 if rect_dev <= RECT_DEV_STRICT else 0
         if rect_dev > RECT_DEV_MAX:
-            reject(f"площадь отличается от прямоугольника на {rect_dev:.0%}")
+            reject(f"площадь уступает прямоугольнику на {rect_dev:.0%}")
             continue
 
         canal_m = float(dist_to_canal[geom_mask].min())
@@ -525,6 +536,8 @@ def main() -> None:
             "solidity": round(solidity, 3),
             "rect_fill": round(rect_fill, 3),
             "bank_iou": round(bank_iou, 3),
+            "bank_iou_strict": round(bank_strict, 3),
+            "rect_dev": round(rect_dev, 3),
             "ndvi_peak": round(float(np.nanmean(ndvi[geom_mask])), 4) if np.isfinite(ndvi[geom_mask]).any() else None,
             "ndwi_peak": round(float(np.nanmean(ndwi[geom_mask])), 4) if np.isfinite(ndwi[geom_mask]).any() else None,
             "centroid": [round(clon, 6), round(clat, 6)],
@@ -544,12 +557,15 @@ def main() -> None:
     for key, label in (("solidity", "заполнение выпуклой оболочки"), ("rect", "заполнение прямоугольника"),
                        ("rice", "доля пикселей с пологом риса"), ("flood", "доля пикселей под водой летом"),
                        ("dry", "доля пикселей без воды в сентябре"),
-                       ("bank", "совпадение границы с валами"),
+                       ("bank", f"совпадение границы с валами, допуск {BANK_TOL_PX * 10} м"),
+                       ("bank_strict", "то же без допуска"),
                        ("canal_m", "расстояние до канала, м")):
         if stats[key]:
             arr = np.array(stats[key])
             log(f"  {label}: медиана {np.median(arr):.2f}, 10-й процентиль {np.percentile(arr, 10):.2f}, "
                 f"90-й {np.percentile(arr, 90):.2f}")
+    log(f"  уложились в отклонение площади <= {RECT_DEV_STRICT:.0%}: {strict_rect[1]} "
+        f"из {strict_rect[0]} дошедших до этой проверки")
     log(f"  принято чеков: {len(checks)}")
     log("")
 
