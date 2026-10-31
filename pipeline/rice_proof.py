@@ -1,16 +1,24 @@
 """Доказательство, что культура в контурах — рис.
 
-Критерий (все три условия одновременно, по пикселям внутри контура):
-  1) NDWI > 0 не менее чем на 50 % площади чека в июне — чек залит;
-  2) средний NDVI > 0,55 в июле — сомкнутый полог;
-  3) NDWI <= 0 в сентябре — чек сброшен перед уборкой.
+Рис отличает не «зелёное поле» и не «сухая осень» — так ведут себя и кукуруза,
+и соя. Рис отличает вода в начале лета: в первой декаде июня чек стоит под слоем
+воды, а всходы ещё редкие, поэтому спутник видит воду (NDWI > 0, LSWI >= NDVI).
+К июню-июлю полог смыкается, вода из космоса пропадает, зато NDVI поднимается
+до 0,8. Осенью чек сбрасывают — и он сухой.
 
-Проверяется на всех контурах, а не на выборке. Для десяти чеков (пять прежних из
-проверки и пять новых случайных) выводятся картинки: четыре панели на каждый чек —
-май, июнь, июль, сентябрь.
+Проверка по каждому контуру:
+  1) вода под пологом (NDWI > 0 или LSWI >= NDVI - 0,05) на >= 50 % площади хотя бы
+     на одной из двух дат затопления. Обе даты выбраны без дождя за пять суток
+     до съёмки — иначе мокрой выглядит и кукуруза после ливня;
+  2) мокро (LSWI >= 0,20) на >= 50 % площади на всех датах затопления: вода,
+     спрятанная пологом, всё равно даёт мокрый отклик;
+  3) средний NDVI > 0,55 на пике вегетации — сомкнутый полог;
+  4) NDWI <= 0 осенью — чек сброшен перед уборкой.
 
-Дополнительно проверяется белое пятно на чеке 18: считается доля ярких пикселей
-и их влияние на средний NDVI.
+Считается по всем контурам, а не по выборке. Для десяти чеков (пять прежних
+из проверки и пять новых случайных) выводятся картинки: июнь RGB, июнь NDWI,
+июль NDVI, октябрь NDWI. Заодно считается, не искажает ли яркое пятно на снимке
+средние индексы чека.
 
 Выход: data/rice_proof.json, data/verify/proof_*.png, журнал в data/_log/rice_proof.txt
 """
@@ -38,13 +46,18 @@ SEED_NEW = 20261102  # новая случайная пятёрка
 PANEL = 260
 MARGIN = 0.45
 
-# Окна дат. Июнь — основное доказательство: в конце мая чеки могут быть ещё не залиты.
+# Окна дат. Две даты затопления — обе без дождя за пять суток до съёмки; пик
+# вегетации; сброс воды. Вторая дата затопления нужна не затем, чтобы увидеть воду
+# дважды (к 11 июня полог её уже прячет), а чтобы убедиться: мокро стоит не один день.
 SLOTS = [
-    ("май", "2025-05-15", "2025-05-31", "2025-05-22"),
-    ("июнь", "2025-06-05", "2025-06-22", None),
-    ("июль", "2025-07-20", "2025-08-05", None),
-    ("сентябрь", "2025-09-05", "2025-09-30", None),
+    ("июнь1", "2025-05-25", "2025-06-20", "2025-06-06"),
+    ("июнь2", "2025-06-08", "2025-06-25", "2025-06-11"),
+    ("июль", "2025-07-01", "2025-08-10", "2025-07-10"),
+    ("октябрь", "2025-09-20", "2025-10-20", "2025-10-04"),
 ]
+WET_STRONG_MARGIN = 0.05   # LSWI >= NDVI - 0.05 — вода под редким пологом
+WET_WEAK_LSWI = 0.20       # просто мокро, и тогда, когда полог сомкнулся
+WET_FRAC_MIN = 0.50
 CLOUD_MAX = 0.25
 BRIGHT_P = 98.0  # яркие пиксели: выше 98-го процентиля по сумме каналов
 
@@ -88,34 +101,44 @@ def main() -> None:
             log(f"{name}: {date} | сцен {len(found)} | тайлы {[tile_of(i) for i in items]} | "
                 f"облака {min(cloud_of(i) for i in items) * 100:.2f} %")
             bands = {}
-            for b in ("red", "green", "nir", "blue", "scl"):
+            for b in ("red", "green", "nir", "blue", "swir16", "scl"):
                 bands[b] = read_merged(items, b, width, height, transform,
                                        Resampling.nearest if b == "scl" else Resampling.bilinear)
             good = ~(np.isin(bands["scl"], [0, 1, 3, 8, 9, 10]) | np.isnan(bands["scl"]))
             with np.errstate(invalid="ignore", divide="ignore"):
                 ndvi = (bands["nir"] - bands["red"]) / (bands["nir"] + bands["red"])
                 ndwi = (bands["green"] - bands["nir"]) / (bands["green"] + bands["nir"])
+                lswi = np.where((bands["nir"] > 0) & (bands["swir16"] > 0),
+                                (bands["nir"] - bands["swir16"]) / (bands["nir"] + bands["swir16"]),
+                                np.nan)
             ndvi = np.where(good, ndvi, np.nan)
             ndwi = np.where(good, ndwi, np.nan)
+            lswi = np.where(good, lswi, np.nan)
+            strong = (ndwi > 0.0) | (lswi >= ndvi - WET_STRONG_MARGIN)
+            weak = lswi >= WET_WEAK_LSWI
             bright = np.nansum(np.dstack([bands["red"], bands["green"], bands["blue"]]), axis=2)
             per[name] = {
                 "date": date, "scene": items[0]["id"], "tiles": [tile_of(i) for i in items],
                 "cloud": round(min(cloud_of(i) for i in items) * 100, 2),
-                "ndvi": ndvi, "ndwi": ndwi, "rgb": bands,
+                "ndvi": ndvi, "ndwi": ndwi, "lswi": lswi,
+                "strong": strong, "weak": weak, "rgb": bands,
                 "bright": bright, "good": good,
                 "valid_pct": round(float(good.mean()) * 100, 2),
             }
             for b in ("red", "green", "nir", "blue"):
                 per[name]["rgb"][b] = np.where(good, bands[b], np.nan)
             log(f"    годных пикселей {good.mean() * 100:.1f} % | NDWI > 0 у "
-                f"{np.nanmean(ndwi > 0) * 100:.1f} % | NDVI средний {np.nanmean(ndvi):+.3f}")
+                f"{np.nanmean(ndwi > 0) * 100:.1f} % | вода под пологом у "
+                f"{np.nanmean(strong) * 100:.1f} % | мокро (LSWI) у {np.nanmean(weak) * 100:.1f} % | "
+                f"NDVI средний {np.nanmean(ndvi):+.3f}")
 
-    for need in ("июнь", "июль", "сентябрь"):
+    for need in ("июнь1", "июль", "октябрь"):
         if need not in per:
             raise SystemExit(f"нет сцены на {need} — доказательство невозможно")
 
-    june, july, sept = per["июнь"], per["июль"], per["сентябрь"]
-    may = per.get("май")
+    june, july, sept = per["июнь1"], per["июль"], per["октябрь"]
+    june2 = per.get("июнь2")
+    may = None
 
     # ---- показатели по каждому контуру
     rows = []
@@ -125,28 +148,38 @@ def main() -> None:
                                transform=transform, fill=0, all_touched=False).astype(bool)
         if m.sum() < 50:
             continue
-        wet_june = float(np.nanmean(june["ndwi"][m] > 0.0))
+        open_june = float(np.nanmean(june["ndwi"][m] > 0.0))
+        wet_june = float(np.nanmean(june["strong"][m]))
+        wet_june2 = float(np.nanmean(june2["strong"][m])) if june2 else None
+        moist_june = float(np.nanmean(june["weak"][m]))
+        moist_june2 = float(np.nanmean(june2["weak"][m])) if june2 else None
         ndvi_july = float(np.nanmean(july["ndvi"][m]))
         ndwi_sept = float(np.nanmean(sept["ndwi"][m]))
         dry_sept = float(np.nanmean(sept["ndwi"][m] <= 0.0))
-        ok = wet_june >= 0.50 and ndvi_july > 0.55 and ndwi_sept <= 0.0
+        # вода хотя бы на одной дате + мокро на всех датах + полог летом + сухо осенью
+        strong_ok = max(v for v in (wet_june, wet_june2) if v is not None) >= WET_FRAC_MIN
+        weak_vals = [v for v in (moist_june, moist_june2) if v is not None]
+        weak_ok = min(weak_vals) >= WET_FRAC_MIN if weak_vals else False
+        ok = bool(strong_ok and weak_ok and ndvi_july > 0.55 and ndwi_sept <= 0.0)
         row = {
             "id": p["id"], "area_ha": p["area_ha"],
+            "open_water_pct": round(open_june * 100, 1),
             "wet_june_pct": round(wet_june * 100, 1),
+            "wet_june2_pct": None if wet_june2 is None else round(wet_june2 * 100, 1),
+            "moist_pct": round(moist_june * 100, 1),
+            "moist2_pct": None if moist_june2 is None else round(moist_june2 * 100, 1),
             "ndvi_july": round(ndvi_july, 3),
             "ndwi_sept": round(ndwi_sept, 3),
             "dry_sept_pct": round(dry_sept * 100, 1),
-            "rice": bool(ok),
+            "rice": ok,
         }
-        if may is not None:
-            row["wet_may_pct"] = round(float(np.nanmean(may["ndwi"][m] > 0.0)) * 100, 1)
-            row["ndvi_may"] = round(float(np.nanmean(may["ndvi"][m])), 3)
-            # влияние яркого пятна на NDVI мая
-            thr = float(np.nanpercentile(may["bright"], BRIGHT_P))
-            hot = m & (may["bright"] >= thr) & np.isfinite(may["bright"])
-            row["bright_pct"] = round(float(hot.sum() / max(m.sum(), 1)) * 100, 1)
-            cold = m & ~hot
-            row["ndvi_may_no_bright"] = round(float(np.nanmean(may["ndvi"][cold])), 3) if cold.sum() > 20 else None
+        # не искажает ли яркое пятно на снимке индексы
+        thr = float(np.nanpercentile(june["bright"], BRIGHT_P))
+        hot = m & (june["bright"] >= thr) & np.isfinite(june["bright"])
+        row["bright_pct"] = round(float(hot.sum() / max(m.sum(), 1)) * 100, 1)
+        cold = m & ~hot
+        row["ndvi_july_no_bright"] = (round(float(np.nanmean(july["ndvi"][cold])), 3)
+                                      if cold.sum() > 20 else None)
         rows.append(row)
 
     n_rice = sum(1 for r in rows if r["rice"])
@@ -156,13 +189,16 @@ def main() -> None:
     log(f"  прошло все три условия: {n_rice} ({n_rice / max(len(rows), 1) * 100:.0f} %)")
     wj = np.array([r["wet_june_pct"] for r in rows])
     nj = np.array([r["ndvi_july"] for r in rows])
-    log(f"  доля пикселей с водой в июне ({june['date']}): медиана {np.median(wj):.0f} %, "
+    mo = np.array([r["moist_pct"] for r in rows])
+    ow = np.array([r["open_water_pct"] for r in rows])
+    log(f"  открытая вода в июне ({june['date']}): медиана {np.median(ow):.0f} %, "
+        f"10-й процентиль {np.percentile(ow, 10):.0f} %")
+    log(f"  вода с учётом полога: медиана {np.median(wj):.0f} %, "
         f"10-й процентиль {np.percentile(wj, 10):.0f} %, 90-й {np.percentile(wj, 90):.0f} %")
+    log(f"  мокро по LSWI: медиана {np.median(mo):.0f} %, "
+        f"10-й процентиль {np.percentile(mo, 10):.0f} %")
     log(f"  NDVI в июле ({july['date']}): медиана {np.median(nj):.2f}, "
-        f"10-й процентиль {np.percentile(nj, 10):.2f}")
-    if may is not None:
-        wm = np.array([r["wet_may_pct"] for r in rows])
-        log(f"  для сравнения, доля воды в мае ({may['date']}): медиана {np.median(wm):.0f} %")
+        f"10-й процентиль {np.percentile(nj, 10):.2f}, минимум {nj.min():.2f}")
     buckets = [(0, 10), (10, 25), (25, 50), (50, 75), (75, 101)]
     log("  корзины по доле воды в июне:")
     for lo, hi in buckets:
@@ -190,14 +226,19 @@ def main() -> None:
         name = f"proof_{p['id']}.png"
         img.save(out_dir / name, optimize=True)
         shots.append({"group": tag, "id": p["id"], "image": name, **{k: r.get(k) for k in
-                     ("wet_june_pct", "ndvi_july", "ndwi_sept", "rice", "wet_may_pct", "bright_pct",
-                      "ndvi_may", "ndvi_may_no_bright")}})
+                     ("wet_june_pct", "open_water_pct", "moist_pct", "wet_june2_pct",
+                      "ndvi_july", "ndwi_sept", "rice", "bright_pct",
+                      "ndvi_july_no_bright")}})
         verdict = "РИС" if r.get("rice") else "НЕ РИС" if r.get("wet_june_pct", 0) < 50 else "НЕОПРЕДЕЛЁННО"
-        log(f"  чек {p['id']}: вода в июне {r.get('wet_june_pct')} % | NDVI июля {r.get('ndvi_july')} | "
-            f"NDWI сентября {r.get('ndwi_sept')} | {verdict}")
+        log(f"  чек {p['id']}: вода в июне {r.get('wet_june_pct')} % (открытая "
+            f"{r.get('open_water_pct')} %, мокро {r.get('moist_pct')} %) | NDVI июля "
+            f"{r.get('ndvi_july')} | NDWI октября {r.get('ndwi_sept')} | {verdict}")
 
     payload = {
-        "criterion": "NDWI > 0 на >= 50 % площади в июне и NDVI > 0.55 в июле и NDWI <= 0 в сентябре",
+        "criterion": ("вода под пологом (NDWI > 0 или LSWI >= NDVI - 0.05) на >= 50 % площади "
+                      "хотя бы на одной из двух дат затопления, обе без дождя; и мокро "
+                      "(LSWI >= 0.20) на >= 50 % на всех датах; и NDVI > 0.55 на пике; "
+                      "и NDWI <= 0 осенью"),
         "dates": {k: {"date": v["date"], "scene": v["scene"], "cloud_pct": v["cloud"],
                       "valid_pct": v["valid_pct"]} for k, v in per.items()},
         "counts": {"checked": len(rows), "rice": n_rice},
@@ -208,15 +249,16 @@ def main() -> None:
     lines = ["# Доказательство риса", ""]
     for s in shots:
         v = "рис" if s["rice"] else "не рис"
-        lines.append(f"- чек {s['id']} ({s['group']}): вода в июне {s['wet_june_pct']} %, "
-                     f"NDVI июля {s['ndvi_july']}, NDWI сентября {s['ndwi_sept']} — **{v}** "
+        lines.append(f"- чек {s['id']} ({s['group']}): вода в июне {s['wet_june_pct']} % "
+                     f"(открытая {s['open_water_pct']} %, мокро {s['moist_pct']} %), "
+                     f"NDVI июля {s['ndvi_july']}, NDWI октября {s['ndwi_sept']} — **{v}** "
                      f"`{s['image']}`")
     (out_dir / "proof_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     log("отчёт: data/verify/proof_report.md")
 
 
 def render_check(f, per, transform, width, height, f_big, f_small, row) -> Image.Image:
-    """Четыре панели: май RGB, июнь NDWI, июль NDVI, сентябрь NDWI."""
+    """Четыре панели: июнь RGB, июнь NDWI, июль NDVI, октябрь NDWI."""
     coords = f["geometry"]["coordinates"][0]
     xs = [c[0] for c in coords]
     ys = [c[1] for c in coords]
@@ -256,12 +298,12 @@ def render_check(f, per, transform, width, height, f_big, f_small, row) -> Image
         return Image.fromarray(ramp(v, stops).astype("uint8"), mode="RGB").resize(
             (PANEL, PANEL), Image.BILINEAR)
 
-    panels = []
-    if "май" in per:
-        panels.append((rgb_panel("май"), f"май {per['май']['date']} · снимок"))
-    panels.append((idx_panel("июнь", "ndwi", NDWI_STOPS), f"июнь {per['июнь']['date']} · NDWI, синее — вода"))
-    panels.append((idx_panel("июль", "ndvi", NDVI_STOPS), f"июль {per['июль']['date']} · NDVI, зелёное — полог"))
-    panels.append((idx_panel("сентябрь", "ndwi", NDWI_STOPS), f"сентябрь {per['сентябрь']['date']} · NDWI"))
+    panels = [
+        (rgb_panel("июнь1"), f"июнь {per['июнь1']['date']} · снимок"),
+        (idx_panel("июнь1", "ndwi", NDWI_STOPS), f"июнь {per['июнь1']['date']} · NDWI, синее — вода"),
+        (idx_panel("июль", "ndvi", NDVI_STOPS), f"июль {per['июль']['date']} · NDVI, зелёное — полог"),
+        (idx_panel("октябрь", "ndwi", NDWI_STOPS), f"октябрь {per['октябрь']['date']} · NDWI"),
+    ]
 
     head, foot = 22, 46
     canvas = Image.new("RGB", (PANEL * len(panels) + 12 * (len(panels) - 1), PANEL + head + foot), (239, 234, 224))
@@ -277,13 +319,14 @@ def render_check(f, per, transform, width, height, f_big, f_small, row) -> Image
 
     p = f["properties"]
     verdict = "рис" if row.get("rice") else "не рис"
-    tail = (f"чек {p['id']} · {p['area_ha']} га · вода в июне {row.get('wet_june_pct')} % · "
-            f"NDVI июля {row.get('ndvi_july')} · NDWI сентября {row.get('ndwi_sept')} — {verdict}")
+    tail = (f"чек {p['id']} · {p['area_ha']} га · вода в июне {row.get('wet_june_pct')} % "
+            f"(открытая {row.get('open_water_pct')} %, мокро {row.get('moist_pct')} %) · "
+            f"NDVI июля {row.get('ndvi_july')} · NDWI октября {row.get('ndwi_sept')} — {verdict}")
     draw.text((4, PANEL + head + 4), tail, font=f_big, fill=(27, 31, 36))
     note = ""
     if row.get("bright_pct") is not None and row["bright_pct"] >= 2.0:
-        note = (f"яркое пятно в мае: {row['bright_pct']} % площади, NDVI с ним {row.get('ndvi_may')}, "
-                f"без него {row.get('ndvi_may_no_bright')}")
+        note = (f"яркое пятно на снимке июня: {row['bright_pct']} % площади, NDVI июля с ним "
+                f"{row.get('ndvi_july')}, без него {row.get('ndvi_july_no_bright')}")
     if note:
         draw.text((4, PANEL + head + 24), note, font=f_small, fill=(180, 52, 31))
     return canvas
