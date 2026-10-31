@@ -42,10 +42,16 @@ DRY_FRAC_MIN = 0.50              # доля пикселей чека с NDWI <=
 # Требуем воду минимум на двух летних датах: однократная мочка после дождя у пропашных
 # бывает, месяц под водой — только у риса.
 SUMMER_FROM, SUMMER_TO = "2025-06-01", "2025-08-25"
-FLOOD_GREEN_MIN_DATES = 2        # минимум летних дат «под водой и зелёный»
+FLOOD_GREEN_MIN_DATES = 2        # минимум дат затопления
 FLOOD_FRAC_MIN = 0.50            # и такая доля площади чека
 NDVI_GREEN_MIN = 0.25            # культура видна, полог ещё не сомкнут
 LSWI_MARGIN = 0.05               # допуск на шум индекса
+# Признак считаем по контуру, а не по пикселю: на 10 м внутри одного чека попадают
+# и вал, и вода, и просвет между всходами. Окно 5x5 пикселей (50 м) даёт долю
+# затопленной площади — ровно ту величину, которая и стоит в критерии.
+FLOOD_SMOOTH_PX = 5
+FIELD_NDVI_MIN = 0.50            # границы полей ищем по сомкнутой зелёной массе
+NDVI_PEAK_MEAN_MIN = 0.55        # средний NDVI чека на пике вегетации
 SOLIDITY_MIN = 0.78              # площадь / площадь выпуклой оболочки
 RECT_FILL_MIN = 0.52             # площадь / площадь минимального повёрнутого прямоугольника
 CANAL_WIDTH_MAX_M = 60.0         # канал — водная полоса уже 60 м (чеки 200-800 м)
@@ -287,40 +293,40 @@ def main() -> None:
     peak = next((s for s in scenes if s["date"] == date), scenes[0])
 
     width, height, transform = grid_shape()
-    # Затопленно-зелёные пиксели считаем по всем летним сценам и копим счётчик дат
-    flood_green = np.zeros((height, width), dtype="int16")
-    ndvi_max = np.full((height, width), -1.0, dtype="float32")
+    # Затопление по каждой дате: сразу в виде доли площади в окне 50 м. На 10 м
+    # внутри чека попадают и вал, и вода, и просвет между всходами, поэтому
+    # поштучный пиксель шумит, а окно даёт ровно ту величину, что в критерии.
+    flood_frac_img: dict[str, np.ndarray] = {}
     flooded_any = np.zeros((height, width), dtype=bool)
     for d in summer_dates:
         ndvi_d = load_raster(SENTINEL / f"ndvi_{d}.tif")
         ndwi_d = load_raster(SENTINEL / f"ndwi_{d}.tif")
         lswi_d = load_raster(SENTINEL / f"lswi_{d}.tif")
         valid_d = load_raster(SENTINEL / f"valid_{d}.tif").astype(bool)
-        wet = (ndwi_d > 0.0) | (lswi_d >= ndvi_d - LSWI_MARGIN)
-        fg = wet & (ndvi_d > NDVI_GREEN_MIN) & valid_d & np.isfinite(ndvi_d)
-        flood_green += fg.astype("int16")
-        ndvi_max = np.where(np.isfinite(ndvi_d) & valid_d, np.maximum(ndvi_max, ndvi_d), ndvi_max)
-        flooded_any |= wet & valid_d & np.isfinite(ndwi_d)
-        log(f"  {d}: вода под пологом у {fg.mean() * 100:5.2f} % полигона | NDWI > 0 у "
+        wet = ((ndwi_d > 0.0) | (lswi_d >= ndvi_d - LSWI_MARGIN)) & valid_d & np.isfinite(ndwi_d)
+        flood_frac_img[d] = ndi.uniform_filter(wet.astype("float32"), size=FLOOD_SMOOTH_PX,
+                                               mode="nearest")
+        flooded_any |= wet
+        log(f"  {d}: затопление {wet.mean() * 100:5.2f} % полигона | NDWI > 0 у "
             f"{(ndwi_d > 0.0)[valid_d].mean() * 100:5.2f} % | NDVI средний "
-            f"{np.nanmean(ndvi_d):.3f}")
-    ndvi_veg = ndvi_max
-    valid_veg = ndvi_max > -1.0
+            f"{np.nanmean(ndvi_d):.3f} | в окне {FLOOD_SMOOTH_PX * 10} м >= {FLOOD_FRAC_MIN:.0%} у "
+            f"{(flood_frac_img[d] >= FLOOD_FRAC_MIN).mean() * 100:5.2f} %")
     ndvi = load_raster(SENTINEL / f"ndvi_{peak_date}.tif")
     ndwi = load_raster(SENTINEL / f"ndwi_{peak_date}.tif")
     ndwi_dry = load_raster(SENTINEL / f"ndwi_{dry_date}.tif")
     valid_dry = load_raster(SENTINEL / f"valid_{dry_date}.tif").astype(bool)
 
-    rice_px = ((flood_green >= FLOOD_GREEN_MIN_DATES) & (ndvi_max > NDVI_RICE_MIN)
-               & (ndwi_dry <= 0.0) & valid_dry)
-    rice_field = ndi.binary_closing(rice_px, structure=np.ones((3, 3)))
-    log(f"вода под зелёным пологом минимум на {FLOOD_GREEN_MIN_DATES} датах: "
-        f"{(flood_green >= FLOOD_GREEN_MIN_DATES).mean() * 100:.2f} % полигона")
-    log(f"плюс NDVI > {NDVI_RICE_MIN} на пике: {(ndvi_max > NDVI_RICE_MIN).mean() * 100:.2f} %")
-    log(f"плюс сухо осенью: {((ndwi_dry <= 0.0) & valid_dry).mean() * 100:.2f} %")
-    log(f"маска риса {rice_field.mean() * 100:.2f} % полигона "
-        f"({rice_field.sum() * 100.0 / 10_000:.0f} га)")
+    # Границы полей — по сомкнутой зелёной массе на пике: валы между чеками
+    # на снимке видны как просветы, и водораздел по ним разделяет поля.
+    ndvi_peak_img = load_raster(SENTINEL / f"ndvi_{peak_date}.tif")
+    valid_peak = load_raster(SENTINEL / f"valid_{peak_date}.tif").astype(bool)
+    field = (ndvi_peak_img > FIELD_NDVI_MIN) & valid_peak
+    field = ndi.binary_opening(field, structure=np.ones((3, 3)))
+    field = ndi.binary_closing(field, structure=np.ones((5, 5)))
+    log(f"зелёные поля на пике: {field.mean() * 100:.2f} % полигона "
+        f"({field.sum() * 100.0 / 10_000:.0f} га)")
     canals = canal_mask(flooded_any)
+    rice_field = field & ~canals
     log(f"каналы (полосы до {CANAL_WIDTH_MAX_M:.0f} м): {canals.mean() * 100:.2f} % полигона")
     dist_to_canal = ndi.distance_transform_edt(~canals).astype("float32") * 10.0  # метры
 
@@ -377,22 +383,29 @@ def main() -> None:
             reject(f"площадь вне {MIN_HA:.0f}-{MAX_HA:.0f} га (эллипсоид)")
             continue
 
-        # признак риса по контуру: полог в июле-августе и сброс воды в сентябре
-        m_veg = geom_mask & valid_veg & np.isfinite(ndvi_veg)
+        # признак риса по контуру: полог на пике и сброс воды осенью
+        m_veg = geom_mask & valid_peak & np.isfinite(ndvi_peak_img)
         if m_veg.sum() < 20:
-            reject("нет годных пикселей на дату полога")
+            reject("нет годных пикселей на дату пика")
             continue
-        rice_frac = float(np.nanmean(ndvi_veg[m_veg] > NDVI_RICE_MIN))
+        peak_ndvi = float(np.nanmean(ndvi_peak_img[m_veg]))
+        rice_frac = float(np.nanmean(ndvi_peak_img[m_veg] > NDVI_RICE_MIN))
         stats["rice"].append(rice_frac)
         if rice_frac < RICE_FRAC_MIN:
             reject(f"нет полога риса (NDVI > {NDVI_RICE_MIN}) на пике")
             continue
+        if peak_ndvi < NDVI_PEAK_MEAN_MIN:
+            reject(f"средний NDVI на пике ниже {NDVI_PEAK_MEAN_MIN}")
+            continue
 
-        # главный признак: вода под зелёным пологом минимум на двух летних датах
-        flood_frac = float(np.nanmean(flood_green[geom_mask] >= FLOOD_GREEN_MIN_DATES))
+        # главный признак: вода минимум на двух датах затопления, оба раза без
+        # дождя перед съёмкой. Доля считается по площади контура.
+        fracs = {d: float(flood_frac_img[d][geom_mask].mean()) for d in flood_dates}
+        flood_frac = min(fracs.values())
         stats["flood"].append(flood_frac)
         if flood_frac < FLOOD_FRAC_MIN:
-            reject(f"нет затопления под пологом (менее {FLOOD_FRAC_MIN:.0%} площади)")
+            reject(f"затоплено менее {FLOOD_FRAC_MIN:.0%} площади: "
+                   f"{', '.join(f'{d} {v:.2f}' for d, v in fracs.items())}")
             continue
 
         m_dry = geom_mask & valid_dry & np.isfinite(ndwi_dry)
@@ -432,7 +445,9 @@ def main() -> None:
             "area_ha": round(area_ha, 2),
             "elev_m": round(elev, 2) if elev is not None else None,
             "rice_frac": round(rice_frac, 3),
+            "peak_ndvi": round(peak_ndvi, 3),
             "flood_frac": round(flood_frac, 3),
+            "flood_fracs": {d: round(v, 3) for d, v in fracs.items()},
             "dry_frac": round(dry_frac, 3),
             "canal_m": round(canal_m, 1),
             "solidity": round(solidity, 3),
