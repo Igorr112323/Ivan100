@@ -55,7 +55,10 @@ jobs:
           PICK=$(grep -m1 '^PICK=' ../data/_trigger/rice.txt 2>/dev/null | cut -d= -f2 | tr -d ' \r')
           case "$PICK" in ''|*[!0-9]*) PICK=0 ;; esac
           echo "массив №$((PICK + 1)): AOI_PICK=$PICK"
-          AOI_PICK="$PICK" python find_rice.py > ../data/_log/find_rice.txt 2>&1
+          COVER=$(grep -m1 '^COVER=' ../data/_trigger/rice.txt 2>/dev/null | cut -d= -f2 | tr -d ' \r')
+          case "$COVER" in ''|*[!0-9.]*) COVER=0.95 ;; esac
+          echo "покрытие не менее $COVER"
+          AOI_PICK="$PICK" COVER_MIN="$COVER" python find_rice.py > ../data/_log/find_rice.txt 2>&1
           echo "КОД ВЫХОДА: $?" >> ../data/_log/find_rice.txt
           tail -40 ../data/_log/find_rice.txt
 

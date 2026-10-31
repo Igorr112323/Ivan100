@@ -393,7 +393,13 @@ def main() -> None:
     rice_sum = ndi.uniform_filter(rice_f, size=(wh, ww), mode="constant") * ww * wh
     cov_sum = ndi.uniform_filter(cov_f, size=(wh, ww), mode="constant") * ww * wh
     coverage = cov_sum / float(ww * wh)
-    score = np.where(coverage >= 0.95, rice_sum * px_ha, -1.0)
+    # Покрытие 0.95 — требование к основному массиву. Для контрольных массивов
+    # его можно опустить (COVER_MIN): иначе в районе находится только два окна,
+    # и тест устойчивости превращается в сравнение двух чисел.
+    cover_min = float(os.environ.get("COVER_MIN", "0.95"))
+    score = np.where(coverage >= cover_min, rice_sum * px_ha, -1.0)
+    log(f"окон с покрытием не менее {cover_min:.0%}: "
+        f"{int((coverage >= cover_min).sum())} из {coverage.size}")
 
     cands = []
     log("")
