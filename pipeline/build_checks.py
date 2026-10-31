@@ -404,7 +404,7 @@ def main() -> None:
             continue
         splits += n_sub - 1
         off = int(labels.max())
-        labels[m] = np.where(sub > 0, sub + off, 0)
+        labels = np.where(m & (sub > 0), sub + off, np.where(m, 0, labels))
     log(f"повторный водораздел: крупных контуров разрезано на {splits} дополнительных")
 
     n_labels = int(labels.max())
