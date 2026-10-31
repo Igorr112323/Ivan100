@@ -48,7 +48,11 @@ main{flex:1;display:flex;min-height:0}
 #legend .note{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:4px}
 
 /* ---------- мобильные блоки: на широком экране их нет ---------- */
-#mobar,#mobottom,#legmini,#sheet_close,#taphint{display:none}
+#mobar,#mobottom,#legmini,#sheet_close,#taphint,#tabs{display:none}
+#mohandle{display:none;height:14px;align-items:center;justify-content:center;cursor:pointer}
+#mohandle i{display:block;width:44px;height:3px;background:var(--line);opacity:.55}
+#tabs button{background:none;border:0;font:inherit;font-size:12px;color:var(--muted);
+  padding:4px 0;cursor:pointer;text-decoration:underline dotted}
 #taphint{position:absolute;left:50%;transform:translateX(-50%);bottom:40px;z-index:5;
   background:var(--paper);border:1px solid var(--line);border-radius:2px;
   padding:3px 8px;font-family:var(--mono);font-size:12px;color:var(--muted)}
@@ -170,21 +174,21 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
   #counters .cell .k{display:none}
   #counters .cell .ks{display:block;font-size:12px;color:var(--muted);line-height:1.15}
   #counters .cell .s{display:none}
-  #mobtns{display:flex;gap:6px;padding:4px 8px 8px}
-  #mobtns button{flex:1;background:none;border:1px solid var(--line);border-radius:2px;
-    font:inherit;font-size:13px;padding:9px 2px;cursor:pointer;color:var(--ink)}
-  #mobtns button[aria-current="true"]{background:var(--ink);color:var(--paper);font-weight:600}
-  #mobtns button[data-mob="help"]{flex:0 0 46px}
+  #mohandle{display:flex}
+  #mocounters{cursor:pointer}
 
   /* шторка: закрыта (высота 0), открывается по нажатию и сжимает карту */
   #sheet{position:static;left:auto;right:auto;bottom:auto;width:auto;min-width:0;
     border-left:0;border-top:1px solid var(--line);height:0;overflow:hidden;
     transition:height .18s ease;z-index:5;order:2}
   #sheet.open{height:58%}
-  #sheet header{display:flex;align-items:baseline;gap:8px;padding:8px 12px;cursor:default}
-  #sheet header h2{font-size:15px}
+  #sheet header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;cursor:default}
+  #sheet header h2{font-size:15px;flex:1}
   #sheet header h2::after{content:""}
-  #sheet header .meta{flex:1;font-size:12px}
+  #sheet header .meta{display:none}
+  #tabs{display:flex;order:3;flex:0 0 100%;gap:14px;margin-top:4px;padding-top:4px;
+    border-top:1px solid rgba(27,31,36,.12)}
+  #tabs button[aria-current="true"]{color:var(--ink);font-weight:600;text-decoration:none}
   #sheet_close{display:block;background:none;border:1px solid var(--line);border-radius:2px;
     font:inherit;font-size:13px;line-height:1;padding:5px 9px;cursor:pointer;color:var(--ink)}
   #panel{flex:1;overflow:auto;min-height:0;max-height:none}
@@ -196,7 +200,7 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
 @media print{
   @page{size:A4 portrait;margin:12mm 10mm}
   html,body{height:auto;overflow:visible;background:#fff}
-  #mapwrap,#legend,#modes,#stamp,#nav,#mobar,#mobottom,#legmini,#sheet_close,#taphint{display:none!important}
+  #mapwrap,#legend,#modes,#stamp,#nav,#mobar,#mobottom,#legmini,#sheet_close,#taphint,#tabs{display:none!important}
   #app{display:block;height:auto}
   main{display:block;height:auto}
   #sheet{width:auto;min-width:0;border:0;position:static;transform:none;
@@ -285,16 +289,17 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
     </section>
     <div id="mobottom">
       <div id="mocounters"></div>
-      <div id="mobtns">
-        <button data-mob="massif" aria-current="true">Ведомость</button>
-        <button data-mob="method">Метод</button>
-        <button data-mob="econ">Экономика</button>
-        <button data-mob="help" aria-label="как читать">?</button>
-      </div>
+      <div id="mohandle"><i></i></div>
     </div>
     <aside id="sheet">
       <header id="sheethead"><h2 id="sheet_title">Ведомость чеков</h2>
         <div class="meta" id="sheet_meta"></div>
+        <div id="tabs">
+          <button data-mob="massif" aria-current="true">чеки</button>
+          <button data-mob="method">метод</button>
+          <button data-mob="econ">экономика</button>
+          <button data-mob="help">что это</button>
+        </div>
         <button id="sheet_close" aria-label="закрыть">✕</button></header>
       <div id="sortbar"></div>
       <div id="panel"></div>
@@ -777,7 +782,7 @@ function setTab(t){
   S.card = null;
   document.querySelectorAll("#nav button").forEach(b =>
     b.setAttribute("aria-current", String(b.dataset.tab === t)));
-  document.querySelectorAll("#mobtns button").forEach(b =>
+  document.querySelectorAll("#tabs button").forEach(b =>
     b.setAttribute("aria-current", String(b.dataset.mob === t)));
   if (t==="massif") vedomost(); else if (t==="method") method(); else econ();
 }
@@ -813,15 +818,20 @@ function init(){
     window.print();
   };
   $("#sheet_close").onclick = () => openSheet(false);
-  document.querySelectorAll("#mobtns button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
     if (b.dataset.mob === "help"){
       help();
-      document.querySelectorAll("#mobtns button").forEach(x =>
+      document.querySelectorAll("#tabs button").forEach(x =>
         x.setAttribute("aria-current", String(x === b)));
       S.card = null;
     } else setTab(b.dataset.mob);
     openSheet(true);
   });
+  $("#mobottom").onclick = () => {
+    if (window.innerWidth > 820) return;
+    if ($("#sheet").classList.contains("open")) openSheet(false);
+    else { setTab("massif"); openSheet(true); }
+  };
   cv.addEventListener("click", onMapTap);
   $("#mometa").textContent = `${c.massif.checks} чека · ${fmt(c.massif.area_ha,1)} га`;
   const q = new URLSearchParams(location.search);
