@@ -1,8 +1,8 @@
-[10:57:19] ERA5 2020-05-01 .. 2020-09-30
-[10:57:20] ERA5 2020: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2020.csv
-[10:57:20] ERA5 2024-05-01 .. 2024-09-30
-[10:57:21] ERA5 2024: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2024.csv
-[10:57:21] ERA5 2025-05-01 .. 2025-09-30
-[10:57:22] ERA5 2025: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2025.csv
-[10:57:22] записано data/weather/manifest.json (0 КБ)
+[11:03:17] ERA5 2020-05-01 .. 2020-09-30
+[11:03:18] ERA5 2020: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2020.csv
+[11:03:18] ERA5 2024-05-01 .. 2024-09-30
+[11:03:19] ERA5 2024: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2024.csv
+[11:03:19] ERA5 2025-05-01 .. 2025-09-30
+[11:03:20] ERA5 2025: 153 суток -> /home/runner/work/Ivan100/Ivan100/data/weather/era5_daily_2025.csv
+[11:03:20] записано data/weather/manifest.json (0 КБ)
 КОД ВЫХОДА: 0
