@@ -41,6 +41,17 @@ def num(v, digits: int = 1):
     return round(float(v), digits)
 
 
+def _ru(v: float, d: int = 1) -> str:
+    """1 293,2 — разделитель дроби запятая, разряды узким пробелом."""
+    return f"{v:,.{d}f}".replace(",", " ").replace(".", ",")
+
+
+def _per_ha_source(row: dict, area_ha: float) -> str:
+    """Источник ₽/га: из чего именно посчитана цифра."""
+    tons = row["yield_tons"]["capped"] - row["yield_tons"]["fallowing"]
+    return f"{_ru(tons)} т × 25 000 ₽/т / {_ru(area_ha)} га"
+
+
 def build() -> dict:
     years = api.years_available()
     year = years[-1]
@@ -157,7 +168,7 @@ def build() -> dict:
         "effect_rub_ha": {
             "value": int(row["economics"]["per_ha_rub"]), "unit": "₽/га",
             "base": "к практике вывода чеков из севооборота",
-            "source": ROSSTAT,
+            "source": _per_ha_source(row, area_ha),
         },
         "effect_rub_array": {
             "value": num(row["economics"]["array_rub"] / 1e6, 2), "unit": "млн ₽",

@@ -220,7 +220,7 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
         <div id="counters"></div>
         <div id="limitrow">
           <div class="lv" id="limval">−15 %</div>
-          <input type="range" id="limit" min="70" max="100" step="1" value="85">
+          <input type="range" id="limit" min="70" max="100" step="1" value="70">
           <div class="cap">лимит<br>водоподачи</div>
         </div>
         <div id="bound">ниже 70 % модель не проверялась</div>
@@ -265,7 +265,7 @@ const fmt = (v, d=0) => (v==null||isNaN(v)) ? "—" :
   Number(v).toLocaleString("ru-RU",{minimumFractionDigits:d,maximumFractionDigits:d});
 
 /* ---------- состояние ---------- */
-const S = { tab:"massif", mode:"opt", limit:85, sort:"id", desc:false, sel:null, blink:null };
+const S = { tab:"massif", mode:"opt", limit:70, sort:"id", desc:false, sel:null, blink:null };
 
 /* ---------- проекция ---------- */
 const POLY = DATA.checks.map(c => c.poly);
@@ -518,17 +518,18 @@ function econ(){
   $("#sortbar").style.display = "none";
   $("#total").style.display = "none";
   const c = DATA.content;
+  const L = DATA.modes.limits.find(l => Math.round(l.limit*100) === S.limit);
   const rows = DATA.grid_curve.map(r =>
     `<tr><td>${r.limit} %</td><td>${r.deficit} %</td><td style="text-align:right">${fmt(r.gain,2)}</td>
      <td style="text-align:right">${fmt(r.per_ha)}</td></tr>`).join("");
   $("#panel").innerHTML = `<div class="doc">
-    <h3>Что даёт система при лимите ${Math.abs(c.limit_base.value)} %</h3>
+    <h3>Что даёт система при лимите ${100 - S.limit} %</h3>
     <div class="kv">
       <span>сбор при выводе чеков (база), т</span><span>${fmt(DATA.modes_now.yield_prac_t,0)}</span>
       <span>сбор при распределении модели, т</span><span>${fmt(DATA.modes_now.yield_opt_t,0)}</span>
       <span>разница к базе, т</span><span>${fmt(DATA.modes_now.yield_opt_t-DATA.modes_now.yield_prac_t,1)}</span>
       <span>подача, млн м³</span><span>${fmt(DATA.modes_now.water_opt_m3/1e6,2)}</span>
-      <span>недоиспользовано лимита, тыс. м³</span><span>${fmt(DATA.underuse_m3/1000,0)}</span>
+      <span>недоиспользовано лимита, тыс. м³</span><span>${fmt((L.water_opt_m3-L.water_prac_m3)/1000,0)}</span>
       <span>источник</span><span>расчёт модели</span>
     </div>
     <p class="src">${DATA.water_line}</p>
@@ -536,7 +537,7 @@ function econ(){
     <table><thead><tr><th>лимит</th><th>дефицит</th><th>%</th><th>₽/га</th></tr></thead>
       <tbody>${rows}</tbody></table>
     <p class="src">₽/га — от фактического урожая на каждом уровне лимита
-    (${DATA.content.effect_rub_ha.source}). Ниже 70 % модель не проверялась.</p>
+    (для −15 %: ${DATA.content.effect_rub_ha.source}). Ниже 70 % модель не проверялась.</p>
   </div>`;
 }
 
@@ -593,7 +594,7 @@ function init(){
   $("#sheethead").onclick = () => { if (window.innerWidth <= 820) $("#sheet").classList.toggle("open"); };
   const q = new URLSearchParams(location.search);
   const lim = q.get("limit");
-  $("#limit").value = lim ? Math.max(70, Math.min(100, +lim)) : (DATA.limit_default || 85);
+  $("#limit").value = lim ? Math.max(70, Math.min(100, +lim)) : (DATA.limit_default || 70);
   setLimit($("#limit").value);
   setTab("massif");
   fit();

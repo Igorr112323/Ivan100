@@ -59,6 +59,11 @@ def headline_variant() -> tuple[str, str, dict]:
             row or PLACEBO_DEFAULT)
 
 
+def _ru(v, d: int = 1) -> str:
+    """1 293,2 — запятая в дроби, разряды узким пробелом."""
+    return f"{v:,.{d}f}".replace(",", " ").replace(".", ",")
+
+
 def placebo_rows() -> dict:
     """Строки плацебо по лимитам из диагностики; пусто, если прогон не было."""
     path = DATA / "optimization" / "diag_wp.json"
@@ -122,7 +127,7 @@ def main():
         rgb_b64 = "data:image/jpeg;base64," + base64.b64encode(jpg.read_bytes()).decode()
 
     head, src, placebo = headline_variant()
-    LIMIT_DEFAULT = 85
+    LIMIT_DEFAULT = 70
     now = modes["limits"][[round(l["limit"] * 100) for l in modes["limits"]].index(LIMIT_DEFAULT)]
 
     payload = {
@@ -174,16 +179,19 @@ def main():
 
 QUESTIONS = [
     ("Откуда знаете, что эффект реален?",
-     "При −15 % выигрыш {real} % лежит внутри случайных перестановок свойств чеков "
-     "(медиана {median} %, 95-й процентиль {p95} %): как доказательство он не годится.",
-     "Годится другое: хозяйство не добирает {underuse} м³ своего лимита ({underuse_pct} % от {water} млн м³) — "
-     "это видно в данных; при −30 % выигрыш {g30} % выше p95 плацебо {p95_30} % ({share30} из 100 перестановок выше).",
-     "источник: расчёт модели · плацебо 100 перестановок на каждом из трёх лимитов"),
+     "При −15 % выигрыш +0,54 % лежит внутри случайных перестановок (медиана 1,29 %, "
+     "95-й процентиль 3,87 %) — как доказательство он не годится, и мы говорим это прямо. "
+     "Годится другое: хозяйство не добирает 0,46 % своего лимита — 81 тыс. м³, это факт из данных.",
+     "И при −30 % выигрыш 6,49 % выше 95-го процентиля плацебо 5,23 %: ни одна из 100 "
+     "перестановок не дала больше.",
+     "Честная оговорка: из двух сравнимых уровней дефицита значим один.",
+     "источник: расчёт модели · плацебо 100 перестановок на каждом уровне"),
     ("Почему числа изменились против заявки?",
      "В заявке массив был предварительной оценкой; в продукте он переоцифрован по признаку риса, "
      "пруды и лиманы исключены, границы уточнены: {checks} чека, {area} га.",
-     "₽/га пересчитаны от фактического урожая на каждом лимите: при −30 % было 11 860 ₽/га, "
-     "стало {p70} ({tons} т × 25 000 ₽ / {area} га).",
+     "₽/га пересчитаны от фактического урожая на каждом лимите: прежняя колонка считалась "
+     "от урожая без лимита и завышала цифру. Сейчас при −30 %: {p70} ₽/га "
+     "({tons} т × 25 000 ₽ / {area} га).",
      "источник: расчёт модели · 25 000 ₽/т — цена, принятая в заявке"),
     ("Откуда отметки и что будет при ошибке?",
      "Отметки чеков — публичные Terrain Tiles z=13, систематическая ошибка не измерена, "
@@ -198,37 +206,45 @@ QUESTIONS = [
      "датчиков и обходов не нужно. Выигрыш при −30 %: {p70} ₽/га, {mln} млн ₽ на массив за сезон.",
      "источник: расчёт модели · открытые данные"),
     ("Это рис или просто поливное поле?",
-     "Рис подтверждён по спектру на {proof_ok} чеках из {proof_all}: вода под пологом (NDWI > 0) "
-     "на ≥ 50 % площади, NDVI > 0,55 на пике, осенью NDWI ≤ 0.",
-     "{proof_bad} чека критерий не прошли — в ведомости они помечены флагом. Это честная дыра "
+     "Критерий: вода на чеке на ≥ 50 % площади хотя бы на одной дате (NDWI > 0 или "
+     "LSWI ≥ NDVI − 0,05) и мокро по LSWI ≥ 0,20 на всех датах. Прошли {proof_ok} чеков "
+     "из {proof_all}.",
+     "Косвенное подтверждение: чек, стоявший под водой в июне, на пике 10 июля даёт NDVI "
+     "0,70–0,87 (медиана 0,80) против 0,52–0,59 в среднем по окну массива вокруг.",
+     "{proof_bad} чека критерий не прошли — в ведомости помечены флагом. Это честная дыра "
      "в данных, а не «весь массив — рис».",
-     "источник: Sentinel-2 L2A, 4 даты сезона 2025"),
+     "источник: Sentinel-2 L2A, 4 даты сезона 2025 · data/rice_proof.json, data/aoi.json"),
 ]
 
 
 def questions(payload: dict, path: Path):
     grid = payload["grid_curve"]
     p70 = next(r for r in grid if r["limit"] == 70)
+    area = payload["content"]["massif"]["area_ha"]
+    tons = p70["per_ha"] * area / 25000
     vals = {
         "real": payload["placebo"]["real"], "median": payload["placebo"]["median"],
         "p95": payload["placebo"]["p95"],
         "underuse": f"{payload['underuse_m3']:,}".replace(",", " "),
-        "underuse_pct": round(payload["underuse_m3"] / (payload["modes_now"]["water_opt_m3"]) * 100, 2),
-        "water": round(payload["modes_now"]["water_opt_m3"] / 1e6, 2),
+        "underuse_pct": _ru(payload["underuse_m3"] / (payload["modes_now"]["water_opt_m3"]) * 100, 2),
+        "water": _ru(payload["modes_now"]["water_opt_m3"] / 1e6, 2),
         "checks": payload["content"]["massif"]["checks"],
-        "area": f"{payload['content']['massif']['area_ha']:.1f}",
+        "area": _ru(area),
         "p70": f"{p70['per_ha']:,}".replace(",", " "),
-        "tons": round(p70["per_ha"] * payload["content"]["massif"]["area_ha"] / 25000, 1),
-        "mln": round(p70["per_ha"] * payload["content"]["massif"]["area_ha"] / 1e6, 2),
+        "tons": _ru(tons),
+        "mln": _ru(tons * 25000 / 1e6, 2),
         "proof_ok": payload["proof_ok"], "proof_all": payload["proof_all"],
         "g30": P30.get("real_gain_pct", "—"), "p95_30": P30.get("placebo_p95_pct", "—"),
         "share30": P30.get("share_above_real_pct", "—"),
         "proof_bad": payload["proof_all"] - payload["proof_ok"],
     }
-    items = "".join(
-        f"""<div class="q"><div class="h">{h}</div><p>{a.format(**vals)}</p>
-      <p>{b.format(**vals)}</p><div class="src">{src}</div></div>"""
-        for h, a, b, src in QUESTIONS)
+    blocks = []
+    for item in QUESTIONS:
+        head, src = item[0], item[-1]
+        paras = "".join(f"<p>{t.format(**vals)}</p>" for t in item[1:-1])
+        blocks.append(f"""<div class="q"><div class="h">{head}</div>{paras}
+      <div class="src">{src}</div></div>""")
+    items = "".join(blocks)
     doc = f"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>АКВАЧЕК — пять злых вопросов</title><style>
