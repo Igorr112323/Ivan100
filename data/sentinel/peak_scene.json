@@ -1,15 +1,16 @@
 {
- "date": "2025-06-08",
- "id": "S2C_37TDL_20250608_0_L2A",
- "label": "затопление: залив чеков, всходы",
+ "date": "2025-06-06",
+ "id": "S2B_37TDL_20250606_0_L2A",
+ "label": "затопление 1: залив чеков",
+ "role": "flood1",
  "tiles": [
   "MGRS-37TDL"
  ],
- "cloud_cover_pct": 0.923,
- "valid_pct": 99.02,
- "ndvi_mean": 0.4074,
- "ndwi_mean": -0.3541,
- "water_pct": 12.73,
- "flood_pct": 22.49,
- "rice_veg_pct": 37.18
+ "cloud_cover_pct": 4.461,
+ "valid_pct": 94.64,
+ "ndvi_mean": 0.4307,
+ "ndwi_mean": -0.3662,
+ "water_pct": 8.42,
+ "flood_pct": 23.95,
+ "rice_veg_pct": 34.94
 }

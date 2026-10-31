@@ -1,21 +1,40 @@
 {
  "catalogue": [
   {
-   "slot": "затопление: залив чеков, всходы",
-   "window": "2025-05-15..2025-06-30",
+   "slot": "затопление 1: залив чеков",
+   "window": "2025-05-15..2025-06-09",
    "start": "2025-05-15",
-   "end": "2025-06-30",
-   "found": 27,
+   "end": "2025-06-09",
+   "found": 14,
    "tiles": [
     "MGRS-37TDL"
    ],
    "scenes": [
     {
-     "id": "S2C_37TDL_20250608_0_L2A",
-     "datetime": "2025-06-08T08:27:48.506000Z",
+     "id": "S2B_37TDL_20250606_0_L2A",
+     "datetime": "2025-06-06T08:37:24.135000Z",
+     "platform": "sentinel-2b",
+     "cloud_cover": 4.461,
+     "nodata_pct": 16.1
+    }
+   ]
+  },
+  {
+   "slot": "затопление 2: кущение под водой",
+   "window": "2025-06-10..2025-06-30",
+   "start": "2025-06-10",
+   "end": "2025-06-30",
+   "found": 13,
+   "tiles": [
+    "MGRS-37TDL"
+   ],
+   "scenes": [
+    {
+     "id": "S2C_37TDL_20250611_0_L2A",
+     "datetime": "2025-06-11T08:37:44.344000Z",
      "platform": "sentinel-2c",
-     "cloud_cover": 0.923,
-     "nodata_pct": 0
+     "cloud_cover": 2.994,
+     "nodata_pct": 16.96
     }
    ]
   },
@@ -68,75 +87,95 @@
    ],
    "scenes": [
     {
-     "id": "S2B_37TDL_20251004_0_L2A",
-     "datetime": "2025-10-04T08:37:24.130000Z",
+     "id": "S2B_37TDL_20250921_1_L2A",
+     "datetime": "2025-09-21T08:27:26.693000Z",
      "platform": "sentinel-2b",
-     "cloud_cover": 0.314,
-     "nodata_pct": 16.39
+     "cloud_cover": 3.918,
+     "nodata_pct": 0
     }
    ]
   }
  ],
  "saved": [
   {
-   "date": "2025-06-08",
-   "id": "S2C_37TDL_20250608_0_L2A",
-   "label": "затопление: залив чеков, всходы",
+   "date": "2025-06-06",
+   "id": "S2B_37TDL_20250606_0_L2A",
+   "label": "затопление 1: залив чеков",
+   "role": "flood1",
    "tiles": [
     "MGRS-37TDL"
    ],
-   "cloud_cover_pct": 0.923,
-   "valid_pct": 99.02,
-   "ndvi_mean": 0.4074,
-   "ndwi_mean": -0.3541,
-   "water_pct": 12.73,
-   "flood_pct": 22.49,
-   "rice_veg_pct": 37.18
+   "cloud_cover_pct": 4.461,
+   "valid_pct": 94.64,
+   "ndvi_mean": 0.4307,
+   "ndwi_mean": -0.3662,
+   "water_pct": 8.42,
+   "flood_pct": 23.95,
+   "rice_veg_pct": 34.94
+  },
+  {
+   "date": "2025-06-11",
+   "id": "S2C_37TDL_20250611_0_L2A",
+   "label": "затопление 2: кущение под водой",
+   "role": "flood2",
+   "tiles": [
+    "MGRS-37TDL"
+   ],
+   "cloud_cover_pct": 2.994,
+   "valid_pct": 89.01,
+   "ndvi_mean": 0.4643,
+   "ndwi_mean": -0.3998,
+   "water_pct": 5.47,
+   "flood_pct": 12.03,
+   "rice_veg_pct": 35.95
   },
   {
    "date": "2025-07-10",
    "id": "S2A_37TDL_20250710_0_L2A",
    "label": "пик вегетации: выметывание",
+   "role": "veg",
    "tiles": [
     "MGRS-37TDL"
    ],
    "cloud_cover_pct": 0.113,
    "valid_pct": 99.02,
-   "ndvi_mean": 0.6102,
-   "ndwi_mean": -0.5603,
-   "water_pct": 0.31,
-   "flood_pct": 0.33,
-   "rice_veg_pct": 66.08
+   "ndvi_mean": 0.6078,
+   "ndwi_mean": -0.5582,
+   "water_pct": 0.39,
+   "flood_pct": 0.42,
+   "rice_veg_pct": 65.74
   },
   {
    "date": "2025-08-19",
    "id": "S2A_37TDL_20250819_0_L2A",
    "label": "налив зерна",
+   "role": "veg2",
    "tiles": [
     "MGRS-37TDL"
    ],
    "cloud_cover_pct": 0.104,
    "valid_pct": 99.02,
-   "ndvi_mean": 0.5666,
-   "ndwi_mean": -0.5292,
-   "water_pct": 1.22,
-   "flood_pct": 2.2,
-   "rice_veg_pct": 60.51
+   "ndvi_mean": 0.5645,
+   "ndwi_mean": -0.5273,
+   "water_pct": 1.31,
+   "flood_pct": 2.3,
+   "rice_veg_pct": 60.25
   },
   {
-   "date": "2025-10-04",
-   "id": "S2B_37TDL_20251004_0_L2A",
+   "date": "2025-09-21",
+   "id": "S2B_37TDL_20250921_1_L2A",
    "label": "уборка: сброс воды",
+   "role": "dry",
    "tiles": [
     "MGRS-37TDL"
    ],
-   "cloud_cover_pct": 0.314,
-   "valid_pct": 99.02,
-   "ndvi_mean": 0.3035,
-   "ndwi_mean": -0.4068,
-   "water_pct": 0.25,
-   "flood_pct": 0.33,
-   "rice_veg_pct": 12.66
+   "cloud_cover_pct": 3.918,
+   "valid_pct": 98.74,
+   "ndvi_mean": 0.3558,
+   "ndwi_mean": -0.4356,
+   "water_pct": 0.4,
+   "flood_pct": 0.43,
+   "rice_veg_pct": 17.24
   }
  ]
 }
