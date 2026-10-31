@@ -7,6 +7,7 @@ on:
     branches: ["**"]
     paths:
       - "pipeline/find_rice.py"
+      - "pipeline/diag_flood.py"
       - "pipeline/common.py"
       - "pipeline/requirements.txt"
       - ".github/workflows/scan.yml"
@@ -31,6 +32,16 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r pipeline/requirements.txt
+
+      - name: Диагностика признака затопления
+        working-directory: pipeline
+        run: |
+          mkdir -p ../data/_log
+          set +e
+          python diag_flood.py > ../data/_log/diag.txt 2>&1
+          echo "КОД ВЫХОДА: $?" >> ../data/_log/diag.txt
+          cat ../data/_log/diag.txt
+          exit 0
 
       - name: Разведка по признаку риса
         working-directory: pipeline
