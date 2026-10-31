@@ -71,6 +71,17 @@ jobs:
           echo "КОД ВЫХОДА: $?" >> ../data/_log/imagery.txt
           tail -40 ../data/_log/imagery.txt
 
+      - name: Диагностика признака затопления
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'checks' || env.STAGE == 'diag' }}
+        working-directory: pipeline
+        run: |
+          mkdir -p ../data/_log
+          set +e
+          python diag_flood.py > ../data/_log/diag.txt 2>&1
+          echo "КОД ВЫХОДА: $?" >> ../data/_log/diag.txt
+          tail -60 ../data/_log/diag.txt
+          exit 0
+
       - name: Контуры чеков с отбором по признаку риса
         if: ${{ env.STAGE == 'all' || env.STAGE == 'checks' }}
         working-directory: pipeline
