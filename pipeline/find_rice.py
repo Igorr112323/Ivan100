@@ -357,14 +357,21 @@ def main() -> None:
         if dry is None:
             raise SystemExit("нет осенней сцены — сброс воды не проверить")
 
-    flooded = ((fg_clean == obs_clean) & (obs_clean >= 1)) \
-        if clean_seen else (flood_green >= FLOOD_GREEN_MIN)
+    # Требуем воду минимум на двух чистых от дождя датах. На всех сразу требовать
+    # нельзя: с 6 по 13 июня полог смыкается и доля затопленных пикселей падает
+    # с 8,3 % до 1,8 % — такое требование оставило бы только поздно залитые чеки.
+    need = min(FLOOD_GREEN_MIN, clean_seen)
+    flooded = (fg_clean >= need) if clean_seen else (flood_green >= FLOOD_GREEN_MIN)
+    if clean_seen:
+        flooded &= (obs_clean >= need)
     rice = flooded & (ndvi_peak > NDVI_PEAK_MIN) & dry
     px_ha = (COARSE_M * COARSE_M) / 10_000.0
     log("")
     log("=== признак риса по району ===")
-    log(f"  затоплено на всех {clean_seen} чистых от дождя датах: "
+    log(f"  затоплено минимум на {need} из {clean_seen} чистых от дождя дат: "
         f"{np.nansum(flooded) * px_ha:.0f} га ({np.nanmean(flooded) * 100:.2f} % района)")
+    log(f"  затоплено на всех {clean_seen} чистых датах: "
+        f"{np.nansum((fg_clean == obs_clean) & (obs_clean >= 1)) * px_ha:.0f} га")
     log(f"  затоплено минимум на {FLOOD_GREEN_MIN} датах из всех: "
         f"{np.nansum(flood_green >= FLOOD_GREEN_MIN) * px_ha:.0f} га "
         f"({np.nanmean(flood_green >= FLOOD_GREEN_MIN) * 100:.2f} % района)")
@@ -422,13 +429,22 @@ def main() -> None:
 
     # Даты, которые обязан взять fetch_sentinel: чтобы проверка риса и сегментация
     # считались по одной и той же съёмке, а не по двум разным случайным сценам.
-    flood_best = max((u for u in used if u["date"] in clean_dates),
-                     key=lambda u: u["flood_green_pct"], default=used[0])
+    clean_used = [u for u in used if u["date"] in clean_dates]
+    mid = "2025-06-08"
+    first = [u for u in clean_used if u["date"] < mid]
+    second = [u for u in clean_used if u["date"] >= mid]
+    if not (first and second):  # чистые даты сбились в одну половину — берём две лучшие
+        pair = sorted(clean_used, key=lambda u: -u["flood_green_pct"])[:2]
+        first, second = pair[:1], pair[1:2]
+    f1 = max(first, key=lambda u: u["flood_green_pct"])
+    f2 = max(second, key=lambda u: u["flood_green_pct"])
     veg_best = max(veg_used, key=lambda u: u["ndvi_mean"])
-    key_dates = {"flood": flood_best["date"], "veg": veg_best["date"],
+    key_dates = {"flood1": f1["date"], "flood2": f2["date"], "veg": veg_best["date"],
                  "dry": autumn[-1][0] if autumn else None}
-    log(f"ключевые даты: затопление {key_dates['flood']} (после {rain_before(key_dates['flood'], rain):.1f} мм "
-        f"осадков), полог {key_dates['veg']}, сброс {key_dates['dry']}")
+    log(f"ключевые даты: затопление {key_dates['flood1']} (осадки перед съёмкой "
+        f"{rain_before(key_dates['flood1'], rain):.1f} мм) и {key_dates['flood2']} "
+        f"({rain_before(key_dates['flood2'], rain):.1f} мм), полог {key_dates['veg']}, "
+        f"сброс {key_dates['dry']}")
 
     aoi = {
         "name": "Рисовый массив, Красноармейский район, Краснодарский край",

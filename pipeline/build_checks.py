@@ -258,13 +258,21 @@ def solidity_and_rect(geom: dict) -> tuple[float, float]:
 
 
 def pick_dates(scenes: list[dict]) -> tuple[list[str], str, str]:
-    """Летние даты (окно затопления) и осенняя (контроль сброса воды)."""
+    """Даты затопления (обе, обе без дождя), пик вегетации и сброс воды.
+
+    Роли датам присваивает fetch_sentinel по ключевым датам из разведки, поэтому
+    здесь не приходится угадывать, какая из майско-июньских сцен «про затопление».
+    """
     dated = sorted(s["date"] for s in scenes)
-    summer = [d for d in dated if SUMMER_FROM <= d <= SUMMER_TO]
-    autumn = [d for d in dated if d > SUMMER_TO]
-    dry_date = autumn[-1] if autumn else dated[-1]
-    peak_date = max(dated, key=lambda d: next(s.get("ndvi_mean") or -1 for s in scenes if s["date"] == d))
-    return summer, dry_date, peak_date
+    roles = {s["date"]: s.get("role", "") for s in scenes}
+    ndvi_mean = {s["date"]: (s.get("ndvi_mean") or -1.0) for s in scenes}
+    flood = [d for d in dated if roles.get(d, "").startswith("flood")]
+    if len(flood) < FLOOD_GREEN_MIN_DATES:
+        flood = [d for d in dated if SUMMER_FROM <= d <= SUMMER_TO]
+    vegs = [d for d in dated if roles.get(d, "").startswith("veg")] or dated
+    dry_date = next((d for d in dated if roles.get(d) == "dry"), dated[-1])
+    peak_date = max(vegs, key=lambda d: ndvi_mean[d])
+    return flood, dry_date, peak_date
 
 
 def main() -> None:
