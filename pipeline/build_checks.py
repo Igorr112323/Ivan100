@@ -50,6 +50,7 @@ LSWI_MARGIN = 0.05               # допуск на шум индекса
 # и вал, и вода, и просвет между всходами. Окно 5x5 пикселей (50 м) даёт долю
 # затопленной площади — ровно ту величину, которая и стоит в критерии.
 FLOOD_SMOOTH_PX = 5
+SEEN_FRAC_MIN = 0.50             # ниже этой доли наблюдённых пикселей дата не в счёт
 FIELD_NDVI_MIN = 0.50            # границы полей ищем по сомкнутой зелёной массе
 NDVI_PEAK_MEAN_MIN = 0.55        # средний NDVI чека на пике вегетации
 SOLIDITY_MIN = 0.78              # площадь / площадь выпуклой оболочки
@@ -297,6 +298,7 @@ def main() -> None:
     # внутри чека попадают и вал, и вода, и просвет между всходами, поэтому
     # поштучный пиксель шумит, а окно даёт ровно ту величину, что в критерии.
     flood_frac_img: dict[str, np.ndarray] = {}
+    flood_seen_img: dict[str, np.ndarray] = {}
     flooded_any = np.zeros((height, width), dtype=bool)
     for d in summer_dates:
         ndvi_d = load_raster(SENTINEL / f"ndvi_{d}.tif")
@@ -304,8 +306,12 @@ def main() -> None:
         lswi_d = load_raster(SENTINEL / f"lswi_{d}.tif")
         valid_d = load_raster(SENTINEL / f"valid_{d}.tif").astype(bool)
         wet = ((ndwi_d > 0.0) | (lswi_d >= ndvi_d - LSWI_MARGIN)) & valid_d & np.isfinite(ndwi_d)
-        flood_frac_img[d] = ndi.uniform_filter(wet.astype("float32"), size=FLOOD_SMOOTH_PX,
-                                               mode="nearest")
+        # Считаем долю по наблюдённым пикселям: иначе облако над чеком читается
+        # как «воды нет» и чек выбрасывается ни за что.
+        num = ndi.uniform_filter(wet.astype("float32"), size=FLOOD_SMOOTH_PX, mode="nearest")
+        den = ndi.uniform_filter(valid_d.astype("float32"), size=FLOOD_SMOOTH_PX, mode="nearest")
+        flood_frac_img[d] = num / np.maximum(den, 1e-6)
+        flood_seen_img[d] = den / float(FLOOD_SMOOTH_PX * FLOOD_SMOOTH_PX)
         flooded_any |= wet
         log(f"  {d}: затопление {wet.mean() * 100:5.2f} % полигона | NDWI > 0 у "
             f"{(ndwi_d > 0.0)[valid_d].mean() * 100:5.2f} % | NDVI средний "
@@ -400,6 +406,12 @@ def main() -> None:
 
         # главный признак: вода минимум на двух датах затопления, оба раза без
         # дождя перед съёмкой. Доля считается по площади контура.
+        seen = {d: float(flood_seen_img[d][geom_mask].mean()) for d in summer_dates}
+        if min(seen.values()) < SEEN_FRAC_MIN:
+            reject(f"на дате затопления облако закрывает более "
+                   f"{(1 - SEEN_FRAC_MIN):.0%} чека: "
+                   f"{', '.join(f'{d} {v:.2f}' for d, v in seen.items())}")
+            continue
         fracs = {d: float(flood_frac_img[d][geom_mask].mean()) for d in summer_dates}
         flood_frac = min(fracs.values())
         stats["flood"].append(flood_frac)
