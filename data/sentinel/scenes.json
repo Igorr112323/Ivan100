@@ -87,11 +87,11 @@
    ],
    "scenes": [
     {
-     "id": "S2B_37TDL_20250921_1_L2A",
-     "datetime": "2025-09-21T08:27:26.693000Z",
+     "id": "S2B_37TDL_20251004_0_L2A",
+     "datetime": "2025-10-04T08:37:24.130000Z",
      "platform": "sentinel-2b",
-     "cloud_cover": 3.918,
-     "nodata_pct": 0
+     "cloud_cover": 0.314,
+     "nodata_pct": 16.39
     }
    ]
   }
@@ -162,20 +162,20 @@
    "rice_veg_pct": 60.25
   },
   {
-   "date": "2025-09-21",
-   "id": "S2B_37TDL_20250921_1_L2A",
+   "date": "2025-10-04",
+   "id": "S2B_37TDL_20251004_0_L2A",
    "label": "уборка: сброс воды",
    "role": "dry",
    "tiles": [
     "MGRS-37TDL"
    ],
-   "cloud_cover_pct": 3.918,
-   "valid_pct": 98.74,
-   "ndvi_mean": 0.3558,
-   "ndwi_mean": -0.4356,
-   "water_pct": 0.4,
-   "flood_pct": 0.43,
-   "rice_veg_pct": 17.24
+   "cloud_cover_pct": 0.314,
+   "valid_pct": 99.02,
+   "ndvi_mean": 0.3035,
+   "ndwi_mean": -0.4064,
+   "water_pct": 0.25,
+   "flood_pct": 0.42,
+   "rice_veg_pct": 12.66
   }
  ]
 }
