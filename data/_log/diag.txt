@@ -1,0 +1,29 @@
+Traceback (most recent call last):
+  File "rasterio/_base.pyx", line 310, in rasterio._base.DatasetBase.__init__
+  File "rasterio/_base.pyx", line 221, in rasterio._base.open_dataset
+  File "rasterio/_err.pyx", line 221, in rasterio._err.exc_wrap_pointer
+rasterio._err.CPLE_OpenFailedError: /home/runner/work/Ivan100/Ivan100/data/sentinel/ndvi_2025-06-06.tif: No such file or directory
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/diag_flood.py", line 118, in <module>
+    main()
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/diag_flood.py", line 48, in main
+    a, b = idx(DATES[0]), idx(DATES[1])
+           ^^^^^^^^^^^^^
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/diag_flood.py", line 24, in idx
+    out[name] = load_raster(SENTINEL / f"{name}_{date}.tif")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/build_checks.py", line 90, in load_raster
+    with rasterio.open(path) as src:
+         ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/rasterio/env.py", line 451, in wrapper
+    return f(*args, **kwds)
+           ^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/rasterio/__init__.py", line 304, in open
+    dataset = DatasetReader(path, driver=driver, sharing=sharing, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "rasterio/_base.pyx", line 312, in rasterio._base.DatasetBase.__init__
+rasterio.errors.RasterioIOError: /home/runner/work/Ivan100/Ivan100/data/sentinel/ndvi_2025-06-06.tif: No such file or directory
+КОД ВЫХОДА: 1
