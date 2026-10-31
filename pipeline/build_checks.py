@@ -602,10 +602,10 @@ def main() -> None:
         f"из {strict_rect[0]} дошедших до этой проверки")
     log(f"  граница совпала с валом менее чем на {BANK_IOU_MIN:.0%}: {bank_low[0]} чеков "
         f"(в брак не уводим — вал на снимке виден не везде)")
-    n_susp = sum(1 for c in checks if c["properties"].get("suspect_merge"))
-    susp_ha = sum(c["properties"]["area_ha"] for c in checks if c["properties"].get("suspect_merge"))
+    n_susp = sum(1 for c in checks if c["row"].get("suspect_merge"))
+    susp_ha = sum(c["area_ha"] for c in checks if c["row"].get("suspect_merge"))
     log(f"  крупнее {SUSPECT_HA:.0f} га (вероятная склейка): {n_susp} чеков, {susp_ha:.1f} га "
-        f"({susp_ha / max(sum(c['properties']['area_ha'] for c in checks), 1) * 100:.0f} % площади)")
+        f"({susp_ha / max(sum(c['area_ha'] for c in checks), 1) * 100:.0f} % площади)")
     log(f"  принято чеков: {len(checks)}")
     log("")
 

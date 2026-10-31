@@ -401,26 +401,26 @@ def main() -> None:
     log(f"окон с покрытием не менее {cover_min:.0%}: "
         f"{int((coverage >= cover_min).sum())} из {coverage.size}")
 
-    cands = []
     log("")
     log("=== лучшие окна ===")
+    order = np.argsort(score.ravel())[::-1]
     shown = 0
-    for idx in np.argsort(score.ravel())[::-1][:4000]:
+    cands = []
+    for idx in order:
         cy, cx = np.unravel_index(idx, score.shape)
         if score[cy, cx] < 0:
             break
         if cy - wh // 2 < 0 or cy + wh // 2 >= height or cx - ww // 2 < 0 or cx + ww // 2 >= width:
             continue
         clon, clat = transform * (cx, cy)
-        bbox = [clon - AOI_HALF_LON, clat - AOI_HALF_LAT, clon + AOI_HALF_LON, clat + AOI_HALF_LAT]
-        tiles = sorted({tile_of(it) for _, grp in flood_dates for it in grp if _intersects(it, bbox)})
         shown += 1
         if shown <= 10:
             log(f"  {clat:.4f} с.ш. {clon:.4f} в.д. | рис {score[cy, cx]:7.0f} га | "
-                f"покрытие {coverage[cy, cx] * 100:5.1f} % | тайлов {len(tiles)}: {tiles}")
+                f"покрытие {coverage[cy, cx] * 100:5.1f} %")
         cands.append({"lat": round(clat, 5), "lon": round(clon, 5),
                       "rice_ha": round(float(score[cy, cx]), 1),
-                      "coverage": round(float(coverage[cy, cx]), 4), "tiles": tiles})
+                      "coverage": round(float(coverage[cy, cx]), 4), "tiles": []})
+    log(f"  всего годных окон: {len(cands)}")
     if not cands:
         raise SystemExit("ни одно окно не набрало годного покрытия")
 
@@ -443,6 +443,10 @@ def main() -> None:
                 far = False
                 break
         if far:
+            b = [c["lon"] - AOI_HALF_LON, c["lat"] - AOI_HALF_LAT,
+                 c["lon"] + AOI_HALF_LON, c["lat"] + AOI_HALF_LAT]
+            c["tiles"] = sorted({tile_of(it) for _, grp in flood_dates
+                                 for it in grp if _intersects(it, b)})
             picks.append(c)
         if len(picks) >= 6:  # в отчёт идёт весь список: сколько массивов нашлось
             break
