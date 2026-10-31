@@ -46,35 +46,50 @@ jobs:
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
-          python find_rice.py 2>&1 | tee ../data/_log/find_rice.txt
+          set +e
+          python find_rice.py > ../data/_log/find_rice.txt 2>&1
+          echo "КОД ВЫХОДА: $?" >> ../data/_log/find_rice.txt
+          tail -40 ../data/_log/find_rice.txt
 
       - name: Метеоряд ERA5 для нового полигона
         if: ${{ env.STAGE == 'all' || env.STAGE == 'weather' }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
-          python fetch_era5.py --years "$YEARS" 2>&1 | tee ../data/_log/weather.txt
+          set +e
+          python fetch_era5.py --years "$YEARS" > ../data/_log/weather.txt 2>&1
+          echo "КОД ВЫХОДА: $?" >> ../data/_log/weather.txt
+          tail -40 ../data/_log/weather.txt
 
       - name: Снимки Sentinel-2
         if: ${{ env.STAGE == 'all' || env.STAGE == 'imagery' }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
-          python fetch_sentinel.py 2>&1 | tee ../data/_log/imagery.txt
+          set +e
+          python fetch_sentinel.py > ../data/_log/imagery.txt 2>&1
+          echo "КОД ВЫХОДА: $?" >> ../data/_log/imagery.txt
+          tail -40 ../data/_log/imagery.txt
 
       - name: Контуры чеков с отбором по признаку риса
         if: ${{ env.STAGE == 'all' || env.STAGE == 'checks' }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
-          python build_checks.py 2>&1 | tee ../data/_log/checks.txt
+          set +e
+          python build_checks.py > ../data/_log/checks.txt 2>&1
+          echo "КОД ВЫХОДА: $?" >> ../data/_log/checks.txt
+          tail -40 ../data/_log/checks.txt
 
       - name: Визуальная проверка пяти случайных чеков
         if: ${{ env.STAGE == 'all' || env.STAGE == 'verify' }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
-          python verify_checks.py 2>&1 | tee ../data/_log/verify.txt
+          set +e
+          python verify_checks.py > ../data/_log/verify.txt 2>&1
+          echo "КОД ВЫХОДА: $?" >> ../data/_log/verify.txt
+          tail -40 ../data/_log/verify.txt
 
       - name: Фиксация данных
         if: always()
