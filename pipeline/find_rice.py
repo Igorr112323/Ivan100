@@ -399,7 +399,7 @@ def main() -> None:
     log("")
     log("=== лучшие окна ===")
     shown = 0
-    for idx in np.argsort(score.ravel())[::-1][:600]:
+    for idx in np.argsort(score.ravel())[::-1][:4000]:
         cy, cx = np.unravel_index(idx, score.shape)
         if score[cy, cx] < 0:
             break
