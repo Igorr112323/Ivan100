@@ -61,6 +61,7 @@ main{flex:1;display:flex;min-height:0}
   padding:5px 10px;cursor:pointer;font-family:inherit;color:var(--ink)}
 #modefoot{display:flex;align-items:center;gap:10px;margin:8px 0 0}
 #waterline{flex:1;font-size:12px;font-family:var(--mono);color:var(--muted)}
+#modehint{font-size:12px;font-family:var(--mono);color:var(--muted);margin-top:6px}
 #counters{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
 #counters .cell .v{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.01em}
 #counters .cell .k{font-size:12px;color:var(--muted)}
@@ -210,13 +211,15 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
         <div class="lbl">Распределение воды</div>
         <div id="switch">
           <button data-mode="uni" aria-pressed="false">Поровну</button>
-          <button data-mode="opt" aria-pressed="true">По фазам</button>
+          <button data-mode="opt" aria-pressed="true">По расписанию</button>
           <button data-mode="diff" aria-pressed="false">Разница</button>
         </div>
         <div id="modefoot">
-          <button id="blink">Мигание: поровну ↔ по фазам</button>
+          <button id="blink">Мигание: поровну ↔ по расписанию</button>
           <span id="waterline"></span>
         </div>
+        <div id="modehint">расписание — подекадное распределение лимита; цвет чека показывает,
+          сколько воды он получает за сезон</div>
         <div id="counters"></div>
         <div id="limitrow">
           <div class="lv" id="limval">−15 %</div>
@@ -584,7 +587,7 @@ function init(){
     $("#ph_mass").textContent =
       `${c.massif.district}, ${c.massif.near} · ${c.massif.checks} чека, ${fmt(c.massif.area_ha,1)} га`;
     $("#ph_limit").textContent =
-      `${S.limit} % (дефицит ${100 - S.limit} %), режим «${S.mode==="uni"?"поровну":(S.mode==="opt"?"по фазам":"разница")}»`;
+      `${S.limit} % (дефицит ${100 - S.limit} %), режим «${S.mode==="uni"?"поровну":(S.mode==="opt"?"по расписанию":"разница")}»`;
     $("#ph_img").textContent = `Sentinel-2 L2A, ${c.image_date.value}`;
     $("#ph_date").textContent = `${d} · ${DATA.content.disclaimer.value}`;
     $("#pf_note").textContent =
