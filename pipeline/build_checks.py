@@ -34,6 +34,7 @@ from common import AOI, DATA, SENTINEL, WEB, grid_shape, log, write_json
 
 GEOD = Geod(ellps="WGS84")
 # Жёсткие фильтры рисового чека (по ТЗ проекта)
+SUSPECT_HA = 25.0               # контур крупнее — вероятно, два чека, склеенных валом
 SPLIT_MIN_HA = 45.0              # контур крупнее — пробуем разрезать повторным водоразделом
 SPLIT_MAX_PARTS = 3              # больше частей — это уже не два чека, а крошево
 MIN_HA, MAX_HA = 12.0, 60.0      # площадь чека: всё вне диапазона — в брак
@@ -566,6 +567,9 @@ def main() -> None:
             "solidity": round(solidity, 3),
             "rect_fill": round(rect_fill, 3),
             "bank_iou": round(bank_iou, 3),
+            "suspect_merge": bool(area_ha > SUSPECT_HA),
+            "merge_note": ("крупнее 25 га: внутренний вал на снимке не виден, "
+                           "разрезать нечем — вероятно, два чека" if area_ha > SUSPECT_HA else ""),
             "bank_iou_strict": round(bank_strict, 3),
             "rect_dev": round(rect_dev, 3),
             "ndvi_peak": round(float(np.nanmean(ndvi[geom_mask])), 4) if np.isfinite(ndvi[geom_mask]).any() else None,
@@ -598,6 +602,10 @@ def main() -> None:
         f"из {strict_rect[0]} дошедших до этой проверки")
     log(f"  граница совпала с валом менее чем на {BANK_IOU_MIN:.0%}: {bank_low[0]} чеков "
         f"(в брак не уводим — вал на снимке виден не везде)")
+    n_susp = sum(1 for c in checks if c["properties"].get("suspect_merge"))
+    susp_ha = sum(c["properties"]["area_ha"] for c in checks if c["properties"].get("suspect_merge"))
+    log(f"  крупнее {SUSPECT_HA:.0f} га (вероятная склейка): {n_susp} чеков, {susp_ha:.1f} га "
+        f"({susp_ha / max(sum(c['properties']['area_ha'] for c in checks), 1) * 100:.0f} % площади)")
     log(f"  принято чеков: {len(checks)}")
     log("")
 

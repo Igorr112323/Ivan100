@@ -422,14 +422,18 @@ def main() -> None:
     # Окно №1 — основной массив, №2 и №3 — контрольные. Порог разноса 13 км при
     # стороне окна 11,7 км: иначе массивы перекроются и это будет один массив трижды.
     pick = int(os.environ.get("AOI_PICK", "0"))
-    sep_km = 13.0
+    # Окна не перекрываются, если разнесены по любой из осей на свою сторону:
+    # по евклидову расстоянию проверять нельзя — diagonальный сдвиг на 13 км
+    # оставляет перекрытие по обеим осям.
+    win_w = 2 * AOI_HALF_LON * 111.32 * math.cos(math.radians(45.45))
+    win_h = 2 * AOI_HALF_LAT * 110.574
     picks: list[dict] = []
     for c in cands:
         far = True
         for q in picks:
-            dy = (c["lat"] - q["lat"]) * 110.574
-            dx = (c["lon"] - q["lon"]) * 111.32 * math.cos(math.radians(c["lat"]))
-            if (dx * dx + dy * dy) ** 0.5 < sep_km:
+            dy = abs(c["lat"] - q["lat"]) * 110.574
+            dx = abs(c["lon"] - q["lon"]) * 111.32 * math.cos(math.radians(c["lat"]))
+            if dx < win_w and dy < win_h:  # перекрываются
                 far = False
                 break
         if far:
@@ -437,7 +441,7 @@ def main() -> None:
         if len(picks) >= 6:  # в отчёт идёт весь список: сколько массивов нашлось
             break
     log("")
-    log(f"=== неперекрывающиеся массивы (разнос не менее {sep_km:.0f} км) ===")
+    log(f"=== неперекрывающиеся массивы (окно {win_w:.1f} x {win_h:.1f} км) ===")
     for i, q in enumerate(picks):
         log(f"  окно №{i + 1}: {q['lat']} с.ш. {q['lon']} в.д. | рис {q['rice_ha']:.0f} га | "
             f"тайлы {q['tiles']}")
@@ -517,7 +521,7 @@ def main() -> None:
     }
     aoi["pick"] = pick
     aoi["pick_note"] = (f"окно №{pick + 1} из {len(picks)} неперекрывающихся "
-                        f"(разнос не менее {sep_km:.0f} км)")
+                        f"(окно {win_w:.1f} x {win_h:.1f} км)")
     write_json(DATA / "aoi.json", aoi)
     if pick > 0:  # контрольный массив: основной не трогаем
         write_json(DATA / f"aoi_{chr(ord('a') + pick)}.json", aoi)
