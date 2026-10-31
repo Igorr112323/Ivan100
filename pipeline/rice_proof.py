@@ -243,6 +243,29 @@ def main() -> None:
             f"{r.get('open_water_pct')} %, мокро {r.get('moist_pct')} %) | NDVI июля "
             f"{r.get('ndvi_july')} | NDWI октября {r.get('ndwi_sept')} | {verdict}")
 
+    # ---- визуальное доказательство: десять чеков, где вода видна глазами.
+    # Слово «рис» без картинки с открытой водой на защите не держится, поэтому
+    # берём не случайные чеки, а десять самых мокрых по доле NDWI > 0 в июне —
+    # снимок 06.06 сделан до смыкания полога.
+    top = sorted(rows, key=lambda r: r.get("open_water_pct") or 0.0, reverse=True)[:10]
+    log("")
+    log("=== визуальное доказательство: десять чеков с максимумом открытой воды ===")
+    log(f"  снимок {june['date']} ({june['scene']}), облака {june['cloud']:.2f} % — до смыкания полога")
+    visual = []
+    by_feat = {f["properties"]["id"]: f for f in feats}
+    for r in top:
+        f = by_feat.get(r["id"])
+        if f is None:
+            continue
+        img = render_check(f, per, transform, width, height, f14, f11, r)
+        name = f"visual_{r['id']}.png"
+        img.save(out_dir / name, optimize=True)
+        visual.append({"id": r["id"], "image": name, **{k: r.get(k) for k in
+                       ("open_water_pct", "wet_june_pct", "moist_pct",
+                        "ndvi_july", "ndwi_sept", "rice")}})
+        log(f"  чек {r['id']}: открытой воды {r.get('open_water_pct')} % "
+            f"(мокро {r.get('moist_pct')} %), NDVI июля {r.get('ndvi_july')} → {name}")
+
     payload = {
         "criterion": ("вода под пологом (NDWI > 0 или LSWI >= NDVI - 0.05) на >= 50 % площади "
                       "хотя бы на одной из двух дат затопления, обе без дождя; и мокро "
@@ -253,6 +276,7 @@ def main() -> None:
         "counts": {"checked": len(rows), "rice": n_rice},
         "checks": rows,
         "shots": shots,
+        "visual": visual,
     }
     write_json(DATA / "rice_proof.json", payload)
     lines = ["# Доказательство риса", ""]
@@ -262,6 +286,14 @@ def main() -> None:
                      f"(открытая {s['open_water_pct']} %, мокро {s['moist_pct']} %), "
                      f"NDVI июля {s['ndvi_july']}, NDWI октября {s['ndwi_sept']} — **{v}** "
                      f"`{s['image']}`")
+    lines += ["", "## Визуальное доказательство: вода видна глазами", "",
+              f"Снимок {june['date']} ({june['scene']}), облака {june['cloud']:.2f} % — "
+              "до смыкания полога. Десять чеков с максимальной долей открытой воды "
+              "(NDWI > 0). Слева направо: RGB июня, NDWI июня, NDVI июля, NDWI октября.", ""]
+    for v in visual:
+        lines.append(f"- чек {v['id']}: открытой воды {v['open_water_pct']} %, "
+                     f"мокро {v['moist_pct']} %, NDVI июля {v['ndvi_july']}, "
+                     f"NDWI октября {v['ndwi_sept']} — `{v['image']}`")
     (out_dir / "proof_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     log("отчёт: data/verify/proof_report.md")
 
