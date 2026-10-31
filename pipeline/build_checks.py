@@ -34,7 +34,8 @@ from common import AOI, DATA, SENTINEL, WEB, grid_shape, log, write_json
 
 GEOD = Geod(ellps="WGS84")
 # Жёсткие фильтры рисового чека (по ТЗ проекта)
-SPLIT_MIN_HA = 30.0              # контур крупнее — режем повторным водоразделом
+SPLIT_MIN_HA = 40.0              # контур крупнее — пробуем разрезать повторным водоразделом
+SPLIT_MAX_PARTS = 3              # больше частей — это уже не два чека, а крошево
 MIN_HA, MAX_HA = 12.0, 60.0      # площадь чека: всё вне диапазона — в брак
                                  # нижний порог поднят с 10 га: медиана 13,7 га прижата
                                  # к порогу, и всё, что мельче 12 га, — обрывки полей
@@ -397,10 +398,12 @@ def main() -> None:
         sub = segment(m, min_distance=6, smooth=1.5,
                       barriers=ndi.binary_dilation(banks, np.ones((3, 3))))
         n_sub = int(sub.max())
-        if n_sub < 2:
+        if n_sub < 2 or n_sub > SPLIT_MAX_PARTS:
             continue
         sizes = np.bincount(sub.ravel())
-        if (sizes[1:] < 3 * 100).any():  # огрех маски, а не второй чек
+        # режем только если каждая часть сама тянет на чек: иначе получим
+        # обрывок поля рядом с целым, и корзины 12-18 га распухнут
+        if (sizes[1:] < MIN_HA * 100).any():
             continue
         splits += n_sub - 1
         off = int(labels.max())
