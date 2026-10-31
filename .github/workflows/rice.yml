@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       stage:
-        description: "all | scan | weather | imagery | checks | verify"
+        description: "all | scan | pipe | weather | imagery | checks | verify | diag"
         required: false
         default: "all"
 
@@ -57,7 +57,7 @@ jobs:
           tail -40 ../data/_log/find_rice.txt
 
       - name: Метеоряд ERA5 для нового полигона
-        if: ${{ env.STAGE == 'all' || env.STAGE == 'weather' }}
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'pipe' || env.STAGE == 'weather' }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
@@ -67,7 +67,7 @@ jobs:
           tail -40 ../data/_log/weather.txt
 
       - name: Снимки Sentinel-2
-        if: ${{ env.STAGE == 'all' || env.STAGE == 'imagery' }}
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'pipe' || env.STAGE == 'imagery' }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
@@ -77,7 +77,7 @@ jobs:
           tail -40 ../data/_log/imagery.txt
 
       - name: Диагностика признака затопления
-        if: ${{ env.STAGE == 'all' || env.STAGE == 'checks' || env.STAGE == 'diag' }}
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'pipe' || env.STAGE == 'checks' || env.STAGE == 'diag' }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
@@ -88,7 +88,7 @@ jobs:
           exit 0
 
       - name: Контуры чеков с отбором по признаку риса
-        if: ${{ env.STAGE == 'all' || env.STAGE == 'checks' }}
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'pipe' || env.STAGE == 'checks' }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
@@ -98,7 +98,7 @@ jobs:
           tail -40 ../data/_log/checks.txt
 
       - name: Визуальная проверка пяти случайных чеков
-        if: ${{ env.STAGE == 'all' || env.STAGE == 'verify' }}
+        if: ${{ env.STAGE == 'all' || env.STAGE == 'pipe' || env.STAGE == 'verify' }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
@@ -119,11 +119,13 @@ jobs:
             echo "нет изменений"
           else
             git commit -q -m "data: рисовый массив Красноармейского района [skip ci]" && echo "commit ok" || echo "commit FAIL $?"
-            for i in 1 2 3; do
-              git pull --rebase origin "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
-              sleep 5
+            for i in 1 2 3 4 5; do
+              git fetch -q origin "$GITHUB_REF_NAME"
+              git rebase -X theirs "origin/$GITHUB_REF_NAME" >/dev/null 2>&1 || git rebase --abort >/dev/null 2>&1
+              git push origin HEAD:"$GITHUB_REF_NAME" && { echo "push ok"; exit 0; }
+              sleep $((i * 4))
             done
-            git push origin HEAD:"$GITHUB_REF_NAME" && echo "push ok" || echo "push FAIL $?"
+            echo "push FAIL"
           fi
 
       - name: Что получилось

@@ -55,11 +55,13 @@ jobs:
             echo "нет изменений"
           else
             git commit -q -m "данные: доказательство риса по июньскому снимку [skip ci]" || echo "commit FAIL"
-            for i in 1 2 3; do
-              git pull --rebase origin "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
-              sleep 5
+            for i in 1 2 3 4 5; do
+              git fetch -q origin "$GITHUB_REF_NAME"
+              git rebase -X theirs "origin/$GITHUB_REF_NAME" >/dev/null 2>&1 || git rebase --abort >/dev/null 2>&1
+              git push origin HEAD:"$GITHUB_REF_NAME" && { echo "push ok"; exit 0; }
+              sleep $((i * 4))
             done
-            git push origin HEAD:"$GITHUB_REF_NAME" && echo "push ok" || echo "push FAIL"
+            echo "push FAIL"
           fi
 
       - name: Журнал в задачу
