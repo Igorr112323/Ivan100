@@ -22,6 +22,7 @@ OUT_DIR = ROOT / "dist"
 OUT = OUT_DIR / "akvachek.html"
 
 PLACEBO_DEFAULT = {"real": 0.54, "median": 1.29, "p95": 3.87}
+P30: dict = {}
 UNDERUSE_M3 = 80_992
 WATER_LINE = "экономии воды нет; подача та же, потери видны по чекам"
 ELEV_NOTE = ("эффект держится при точности отметок лучше 0,4 м; текущий источник "
@@ -46,17 +47,31 @@ def headline_variant() -> tuple[str, str, dict]:
         grid = load("optimization/grid.json")
         lim = next(r for r in grid["rows"] if abs(r["limit"] - 0.70) < 1e-9)
         tons = round(lim["yield_tons"]["capped"] - lim["yield_tons"]["fallowing"])
+        p70 = next((r["economics"]["per_ha_rub"] for r in grid["rows"]
+                    if abs(r["limit"] - 0.70) < 1e-9), None)
+        money = f" · {p70:,} ₽/га при −30 %".replace(",", " ")
         return (f"В жёсткий дефицит (−30 %) — на {tons} т риса больше, "
                 f"чем при текущей практике. В обычный год эффект близок к нулю.",
-                "база: практика вывода чеков из севооборота · расчёт модели", row)
+                f"база: практика вывода чеков из севооборота{money} · расчёт модели", row)
     return ("Подача та же. Потери видны: 0,46 % лимита недомспользуется — "
             "81 тыс. м³ на массиве.",
             "база: практика вывода чеков из севооборота · расчёт модели",
             row or PLACEBO_DEFAULT)
 
 
+def placebo_rows() -> dict:
+    """Строки плацебо по лимитам из диагностики; пусто, если прогон не было."""
+    path = DATA / "optimization" / "diag_wp.json"
+    if not path.exists():
+        return {}
+    d = json.loads(path.read_text(encoding="utf-8"))
+    return {r.get("deficit_pct"): r for r in d.get("placebo_limits", {}).get("rows", [])}
+
+
 def main():
     checks_gj = load("checks.geojson")
+    global P30
+    P30 = placebo_rows().get(30, {})
     content = load("content.json")
     modes = load("optimization/modes.json")
     grid = load("optimization/grid.json")
@@ -159,11 +174,11 @@ def main():
 
 QUESTIONS = [
     ("Откуда знаете, что эффект реален?",
-     "Плацебо-тест: выигрыш {real} % лежит внутри случайных перестановок свойств чеков "
-     "(медиана {median} %, 95-й процентиль {p95} %) — сам по себе он ничего не доказывает.",
-     "Доказуемое другое: хозяйство не добирает {underuse} м³ своего лимита ({underuse_pct} % "
-     "от {water} млн м³). Это видно в данных, а не в модели.",
-     "источник: расчёт модели · Sentinel-2 L2A · ERA5"),
+     "При −15 % выигрыш {real} % лежит внутри случайных перестановок свойств чеков "
+     "(медиана {median} %, 95-й процентиль {p95} %): как доказательство он не годится.",
+     "Годится другое: хозяйство не добирает {underuse} м³ своего лимита ({underuse_pct} % от {water} млн м³) — "
+     "это видно в данных; при −30 % выигрыш {g30} % выше p95 плацебо {p95_30} % ({share30} из 100 перестановок выше).",
+     "источник: расчёт модели · плацебо 100 перестановок на каждом из трёх лимитов"),
     ("Почему числа изменились против заявки?",
      "В заявке массив был предварительной оценкой; в продукте он переоцифрован по признаку риса, "
      "пруды и лиманы исключены, границы уточнены: {checks} чека, {area} га.",
@@ -206,6 +221,8 @@ def questions(payload: dict, path: Path):
         "tons": round(p70["per_ha"] * payload["content"]["massif"]["area_ha"] / 25000, 1),
         "mln": round(p70["per_ha"] * payload["content"]["massif"]["area_ha"] / 1e6, 2),
         "proof_ok": payload["proof_ok"], "proof_all": payload["proof_all"],
+        "g30": P30.get("real_gain_pct", "—"), "p95_30": P30.get("placebo_p95_pct", "—"),
+        "share30": P30.get("share_above_real_pct", "—"),
         "proof_bad": payload["proof_all"] - payload["proof_ok"],
     }
     items = "".join(

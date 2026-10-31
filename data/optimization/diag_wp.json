@@ -1,64 +1,41 @@
 {
-  "filtration": {
-    "test": "фильтрация: константа против пропорциональной слою",
-    "deficit": 0.15,
-    "ky": 1.1,
-    "modes": [
+  "placebo_limits": {
+    "test": "плацебо при жёстких лимитах",
+    "rows": [
       {
-        "kappa": 0.0,
-        "mode": "фильтрация константа",
-        "yield_practice_t": 8062.1,
-        "yield_optimum_t": 8105.6,
-        "gain_yield_pct": 0.54,
-        "water_practice_m3": 17577393,
-        "water_optimum_m3": 17658385,
-        "water_inverse_m3": 19021090,
-        "water_inverse_nocap_m3": 18028213,
-        "saving_m3_per_ha": -1116,
-        "saving_mln_m3": -1.444,
-        "saving_pct": -8.21,
-        "saving_nocap_m3_per_ha": -349,
-        "saving_nocap_pct": -2.56,
-        "wp_practice": 0.00045866,
-        "wp_optimum": 0.00045902
+        "deficit_pct": 25,
+        "limit_pct": 75,
+        "runs": 100,
+        "real_gain_pct": 2.965,
+        "placebo_median_pct": 1.674,
+        "placebo_p05_pct": 0.361,
+        "placebo_p95_pct": 3.995,
+        "share_above_real_pct": 18.0,
+        "verdict": "реальный выигрыш НЕ выше 95-го процентиля плацебо"
       },
       {
-        "kappa": 0.5,
-        "mode": "фильтрация × (1 − 0.5·δ)",
-        "yield_practice_t": 8062.1,
-        "yield_optimum_t": 8238.4,
-        "gain_yield_pct": 2.187,
-        "water_practice_m3": 17577393,
-        "water_optimum_m3": 17658385,
-        "water_inverse_m3": 18517016,
-        "water_inverse_nocap_m3": 17553556,
-        "saving_m3_per_ha": -727,
-        "saving_mln_m3": -0.94,
-        "saving_pct": -5.35,
-        "saving_nocap_m3_per_ha": 18,
-        "saving_nocap_pct": 0.14,
-        "wp_practice": 0.00045866,
-        "wp_optimum": 0.00046654
+        "deficit_pct": 30,
+        "limit_pct": 70,
+        "runs": 100,
+        "real_gain_pct": 6.49,
+        "placebo_median_pct": 1.556,
+        "placebo_p05_pct": 0.279,
+        "placebo_p95_pct": 5.234,
+        "share_above_real_pct": 0.0,
+        "verdict": "реальный выигрыш ВЫШЕ 95-го процентиля плацебо"
       },
       {
-        "kappa": 1.0,
-        "mode": "фильтрация × (1 − 1.0·δ)",
-        "yield_practice_t": 8062.1,
-        "yield_optimum_t": 8350.5,
-        "gain_yield_pct": 3.577,
-        "water_practice_m3": 17577393,
-        "water_optimum_m3": 17658385,
-        "water_inverse_m3": 18012941,
-        "water_inverse_nocap_m3": 17072736,
-        "saving_m3_per_ha": -337,
-        "saving_mln_m3": -0.436,
-        "saving_pct": -2.48,
-        "saving_nocap_m3_per_ha": 390,
-        "saving_nocap_pct": 2.87,
-        "wp_practice": 0.00045866,
-        "wp_optimum": 0.00047289
+        "deficit_pct": 35,
+        "limit_pct": 65,
+        "runs": 100,
+        "real_gain_pct": 2.142,
+        "placebo_median_pct": 1.486,
+        "placebo_p05_pct": 0.331,
+        "placebo_p95_pct": 4.448,
+        "share_above_real_pct": 34.0,
+        "verdict": "реальный выигрыш НЕ выше 95-го процентиля плацебо"
       }
     ]
   },
-  "_seconds": 5.1
+  "_seconds": 190.3
 }
