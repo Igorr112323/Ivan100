@@ -34,6 +34,7 @@ from common import AOI, DATA, SENTINEL, WEB, grid_shape, log, write_json
 
 GEOD = Geod(ellps="WGS84")
 # Жёсткие фильтры рисового чека (по ТЗ проекта)
+SPLIT_MIN_HA = 30.0              # контур крупнее — режем повторным водоразделом
 MIN_HA, MAX_HA = 12.0, 60.0      # площадь чека: всё вне диапазона — в брак
                                  # нижний порог поднят с 10 га: медиана 13,7 га прижата
                                  # к порогу, и всё, что мельче 12 га, — обрывки полей
@@ -384,6 +385,28 @@ def main() -> None:
     dist_to_canal = ndi.distance_transform_edt(~canals).astype("float32") * 10.0  # метры
 
     labels = segment(rice_field, barriers=ndi.binary_dilation(banks, np.ones((3, 3))))
+
+    # Крупные контуры — это два-три чека, склеенных слабым валом. Режем их вторым
+    # водоразделом с меньшим шагом: на отдельных полях вал виден лучше, чем на
+    # всём массиве сразу, где его перебивают перепады яркости между культурами.
+    splits = 0
+    for lab in range(1, int(labels.max()) + 1):
+        m = labels == lab
+        if m.sum() * 100.0 / 10_000.0 < SPLIT_MIN_HA:
+            continue
+        sub = segment(m, min_distance=6, smooth=1.5,
+                      barriers=ndi.binary_dilation(banks, np.ones((3, 3))))
+        n_sub = int(sub.max())
+        if n_sub < 2:
+            continue
+        sizes = np.bincount(sub.ravel())
+        if (sizes[1:] < 3 * 100).any():  # огрех маски, а не второй чек
+            continue
+        splits += n_sub - 1
+        off = int(labels.max())
+        labels[m] = np.where(sub > 0, sub + off, 0)
+    log(f"повторный водораздел: крупных контуров разрезано на {splits} дополнительных")
+
     n_labels = int(labels.max())
     log(f"водораздел выделил {n_labels} контуров")
     _size_histogram(labels)
