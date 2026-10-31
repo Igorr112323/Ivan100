@@ -400,7 +400,7 @@ def main() -> None:
 
         # главный признак: вода минимум на двух датах затопления, оба раза без
         # дождя перед съёмкой. Доля считается по площади контура.
-        fracs = {d: float(flood_frac_img[d][geom_mask].mean()) for d in flood_dates}
+        fracs = {d: float(flood_frac_img[d][geom_mask].mean()) for d in summer_dates}
         flood_frac = min(fracs.values())
         stats["flood"].append(flood_frac)
         if flood_frac < FLOOD_FRAC_MIN:
