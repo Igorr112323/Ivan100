@@ -1,29 +1,35 @@
-Traceback (most recent call last):
-  File "rasterio/_base.pyx", line 310, in rasterio._base.DatasetBase.__init__
-  File "rasterio/_base.pyx", line 221, in rasterio._base.open_dataset
-  File "rasterio/_err.pyx", line 221, in rasterio._err.exc_wrap_pointer
-rasterio._err.CPLE_OpenFailedError: /home/runner/work/Ivan100/Ivan100/data/sentinel/ndvi_2025-06-06.tif: No such file or directory
-
-During handling of the above exception, another exception occurred:
-
+[00:44:10] годных пикселей: 2025-06-06 94.6 %, 2025-06-11 89.0 %, общих 85.7 %
+[00:44:10]   NDVI: 2025-06-06 средний +0.431 | 2025-06-11 средний +0.464 | сдвиг +0.025
+[00:44:10]   NDWI: 2025-06-06 средний -0.366 | 2025-06-11 средний -0.400 | сдвиг -0.024
+[00:44:10]   LSWI: 2025-06-06 средний +0.244 | 2025-06-11 средний +0.157 | сдвиг -0.084
+[00:44:10] 
+[00:44:10] === устойчивость признака затопления между двумя датами ===
+[00:44:10] признак                  6 июн  11 июн  пересеч   Жаккар   доля 6-х, выживших 11-го
+[00:44:10] NDWI > 0                 8.90%   6.15%    3.29%   25.46%                      33.5%
+[00:44:10] LSWI >= NDVI            24.86%  12.69%    9.57%   30.77%                      34.8%
+[00:44:10] LSWI >= NDVI - 0.05     27.12%  15.28%   11.50%   33.50%                      38.4%
+[00:44:10] LSWI >= NDVI - 0.15     31.90%  20.83%   15.74%   38.26%                      44.7%
+[00:44:10] LSWI >= NDVI - 0.25     36.73%  28.11%   21.09%   43.29%                      52.0%
+[00:44:10] LSWI >= 0.30            47.93%  27.44%   23.36%   40.19%                      44.1%
+[00:44:10] LSWI >= 0.20            59.17%  49.15%   41.99%   56.39%                      64.2%
+[00:44:10] 
+[00:44:10] === поведение индексов на пикселях, затопленных 6 июня (LSWI >= NDVI - 0.05) ===
+[00:44:10]   NDVI: 6 июн +0.170 (медиана +0.155) -> 11 июн +0.327 (медиана +0.316)
+[00:44:10]   NDWI: 6 июн -0.081 (медиана -0.072) -> 11 июн -0.197 (медиана -0.212)
+[00:44:10]   LSWI: 6 июн +0.489 (медиана +0.496) -> 11 июн +0.251 (медиана +0.275)
+[00:44:10]   LSWI - NDVI на этих пикселях: 6 июн +0.320 -> 11 июн -0.076 (порог признака -0,05)
+[00:44:10] 
+[00:44:10] === то же для пикселей с NDWI > 0 6 июня ===
+[00:44:10]   NDVI: 6 июн -0.006 -> 11 июн +0.142
+[00:44:10]   NDWI: 6 июн +0.084 -> 11 июн -0.024
+[00:44:10]   LSWI: 6 июн +0.508 -> 11 июн +0.236
+[00:44:10] 
+[00:44:10] === карты затопления (север сверху, # — вода, . — сухо, ~ — нет данных) ===
 Traceback (most recent call last):
   File "/home/runner/work/Ivan100/Ivan100/pipeline/diag_flood.py", line 118, in <module>
     main()
-  File "/home/runner/work/Ivan100/Ivan100/pipeline/diag_flood.py", line 48, in main
-    a, b = idx(DATES[0]), idx(DATES[1])
-           ^^^^^^^^^^^^^
-  File "/home/runner/work/Ivan100/Ivan100/pipeline/diag_flood.py", line 24, in idx
-    out[name] = load_raster(SENTINEL / f"{name}_{date}.tif")
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/Ivan100/Ivan100/pipeline/build_checks.py", line 90, in load_raster
-    with rasterio.open(path) as src:
-         ^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/rasterio/env.py", line 451, in wrapper
-    return f(*args, **kwds)
-           ^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/rasterio/__init__.py", line 304, in open
-    dataset = DatasetReader(path, driver=driver, sharing=sharing, **kwargs)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "rasterio/_base.pyx", line 312, in rasterio._base.DatasetBase.__init__
-rasterio.errors.RasterioIOError: /home/runner/work/Ivan100/Ivan100/data/sentinel/ndvi_2025-06-06.tif: No such file or directory
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/diag_flood.py", line 100, in main
+    log(f"  {a_['date']} · {key}")
+             ~~^^^^^^^^
+KeyError: 'date'
 КОД ВЫХОДА: 1

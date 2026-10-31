@@ -4,12 +4,12 @@
   {
    "id": 5,
    "image": "check_5.png",
-   "area_ha": 37.22,
+   "area_ha": 37.2,
    "elev_m": -1.04,
    "rice_frac": 0.891,
    "dry_frac": 1.0,
    "canal_m": 0.0,
-   "solidity": 0.92,
+   "solidity": 0.921,
    "rect_fill": 0.775,
    "neighbors": 6
   },
@@ -52,13 +52,13 @@
   {
    "id": 7,
    "image": "check_7.png",
-   "area_ha": 32.33,
+   "area_ha": 32.36,
    "elev_m": -0.92,
-   "rice_frac": 0.891,
+   "rice_frac": 0.89,
    "dry_frac": 1.0,
    "canal_m": 0.0,
    "solidity": 0.949,
-   "rect_fill": 0.636,
+   "rect_fill": 0.637,
    "neighbors": 4
   }
  ],
