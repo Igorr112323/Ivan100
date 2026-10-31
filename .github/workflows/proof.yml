@@ -14,6 +14,11 @@ on:
       - "data/_trigger/proof.txt"
   workflow_dispatch:
 
+# Все три воркфлоу коммитят data/ — одновременные прогоны теряли данные на пуше.
+concurrency:
+  group: akvachek-data
+  cancel-in-progress: false
+
 jobs:
   proof:
     runs-on: ubuntu-latest

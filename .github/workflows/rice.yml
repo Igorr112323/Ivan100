@@ -19,6 +19,11 @@ on:
         required: false
         default: "all"
 
+# Все три воркфлоу коммитят data/ — одновременные прогоны теряли данные на пуше.
+concurrency:
+  group: akvachek-data
+  cancel-in-progress: false
+
 jobs:
   rice:
     runs-on: ubuntu-latest
