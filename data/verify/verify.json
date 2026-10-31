@@ -2,8 +2,8 @@
  "seed": 20251031,
  "checks": [
   {
-   "id": 33,
-   "image": "check_33.png",
+   "id": 17,
+   "image": "check_17.png",
    "area_ha": 18.43,
    "elev_m": -1.57,
    "rice_frac": 0.926,
@@ -14,52 +14,52 @@
    "neighbors": 9
   },
   {
-   "id": 47,
-   "image": "check_47.png",
-   "area_ha": 14.52,
+   "id": 24,
+   "image": "check_24.png",
+   "area_ha": 58.6,
+   "elev_m": -0.52,
+   "rice_frac": 0.877,
+   "dry_frac": 1.0,
+   "canal_m": 0.0,
+   "solidity": 0.847,
+   "rect_fill": 0.665,
+   "neighbors": 7
+  },
+  {
+   "id": 10,
+   "image": "check_10.png",
+   "area_ha": 56.59,
+   "elev_m": -3.6,
+   "rice_frac": 0.965,
+   "dry_frac": 1.0,
+   "canal_m": 0.0,
+   "solidity": 0.863,
+   "rect_fill": 0.796,
+   "neighbors": 6
+  },
+  {
+   "id": 5,
+   "image": "check_5.png",
+   "area_ha": 12.77,
+   "elev_m": -3.17,
+   "rice_frac": 0.898,
+   "dry_frac": 1.0,
+   "canal_m": 0.0,
+   "solidity": 0.928,
+   "rect_fill": 0.835,
+   "neighbors": 6
+  },
+  {
+   "id": 22,
+   "image": "check_22.png",
+   "area_ha": 38.95,
    "elev_m": 0.13,
-   "rice_frac": 0.974,
+   "rice_frac": 0.972,
    "dry_frac": 1.0,
    "canal_m": 0.0,
-   "solidity": 0.93,
-   "rect_fill": 0.896,
-   "neighbors": 3
-  },
-  {
-   "id": 19,
-   "image": "check_19.png",
-   "area_ha": 32.77,
-   "elev_m": -1.93,
-   "rice_frac": 0.981,
-   "dry_frac": 1.0,
-   "canal_m": 0.0,
-   "solidity": 0.948,
-   "rect_fill": 0.896,
-   "neighbors": 4
-  },
-  {
-   "id": 9,
-   "image": "check_9.png",
-   "area_ha": 18.37,
-   "elev_m": -1.13,
-   "rice_frac": 0.956,
-   "dry_frac": 1.0,
-   "canal_m": 0.0,
-   "solidity": 0.866,
-   "rect_fill": 0.749,
-   "neighbors": 5
-  },
-  {
-   "id": 48,
-   "image": "check_48.png",
-   "area_ha": 19.87,
-   "elev_m": -0.16,
-   "rice_frac": 0.912,
-   "dry_frac": 1.0,
-   "canal_m": 0.0,
-   "solidity": 0.921,
-   "rect_fill": 0.863,
-   "neighbors": 3
+   "solidity": 0.841,
+   "rect_fill": 0.683,
+   "neighbors": 6
   }
  ],
  "rice_test": {
@@ -83,7 +83,7 @@
    "2025-06-11"
   ],
   "area_ha": [
-   10.0,
+   12.0,
    60.0
   ],
   "solidity_min": 0.78,
