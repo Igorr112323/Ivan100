@@ -1,39 +1,31 @@
-[00:02:58] полигон [38.24082, 45.32815, 38.39082, 45.43215], сетка 1173 x 1150, чеков 11
-[00:02:58] май: 2025-05-22 | сцен 9 | тайлы ['MGRS-37TDL'] | облака 5.88 %
-[00:03:03]     годных пикселей 99.2 % | NDWI > 0 у 8.6 % | NDVI средний +0.468
-[00:03:03] июнь: 2025-06-08 | сцен 10 | тайлы ['MGRS-37TDL'] | облака 0.92 %
-[00:03:06]     годных пикселей 99.2 % | NDWI > 0 у 7.4 % | NDVI средний +0.483
-[00:03:07] июль: 2025-07-28 | сцен 11 | тайлы ['MGRS-37TDL'] | облака 0.08 %
-[00:03:10]     годных пикселей 99.2 % | NDWI > 0 у 2.1 % | NDVI средний +0.553
-[00:03:10] сентябрь: 2025-09-24 | сцен 14 | тайлы ['MGRS-37TDL'] | облака 0.23 %
-[00:03:14]     годных пикселей 99.2 % | NDWI > 0 у 1.2 % | NDVI средний +0.323
-[00:03:14] 
-[00:03:14] === проверка критерия риса по всем контурам ===
-[00:03:14]   контуров проверено: 0
-[00:03:14]   прошло все три условия: 0 (0 %)
-/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/core/fromnumeric.py:3504: RuntimeWarning: Mean of empty slice.
-  return _methods._mean(a, axis=axis, dtype=dtype,
-/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/core/_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
-  ret = ret.dtype.type(ret / rcount)
+[00:44:49] полигон [38.11653, 45.46484, 38.26653, 45.56884], сетка 1170 x 1150, чеков 7
+[00:44:49] май: 2025-05-22 | сцен 9 | тайлы ['MGRS-37TDL'] | облака 5.88 %
+[00:44:52]     годных пикселей 99.0 % | NDWI > 0 у 4.1 % | NDVI средний +0.416
+[00:44:53] июнь: 2025-06-08 | сцен 10 | тайлы ['MGRS-37TDL'] | облака 0.92 %
+[00:44:55]     годных пикселей 99.0 % | NDWI > 0 у 12.8 % | NDVI средний +0.406
+[00:44:56] июль: 2025-07-28 | сцен 11 | тайлы ['MGRS-37TDL'] | облака 0.08 %
+[00:44:58]     годных пикселей 99.0 % | NDWI > 0 у 0.3 % | NDVI средний +0.622
+[00:44:58] сентябрь: 2025-09-24 | сцен 14 | тайлы ['MGRS-37TDL'] | облака 0.23 %
+[00:45:01]     годных пикселей 99.0 % | NDWI > 0 у 0.4 % | NDVI средний +0.343
+[00:45:01] 
+[00:45:01] === проверка критерия риса по всем контурам ===
+[00:45:01]   контуров проверено: 7
+[00:45:01]   прошло все три условия: 3 (43 %)
+[00:45:01]   доля пикселей с водой в июне (2025-06-08): медиана 42 %, 10-й процентиль 22 %, 90-й 67 %
+[00:45:01]   NDVI в июле (2025-07-28): медиана 0.83, 10-й процентиль 0.78
+[00:45:01]   для сравнения, доля воды в мае (2025-05-22): медиана 0 %
+[00:45:01]   корзины по доле воды в июне:
+[00:45:01]       0.. 10 %:    1 чеков
+[00:45:01]      10.. 25 %:    0 чеков
+[00:45:01]      25.. 50 %:    3 чеков
+[00:45:01]      50.. 75 %:    3 чеков
+[00:45:01]      75..101 %:    0 чеков
 Traceback (most recent call last):
   File "/home/runner/work/Ivan100/Ivan100/pipeline/rice_proof.py", line 293, in <module>
     main()
-  File "/home/runner/work/Ivan100/Ivan100/pipeline/rice_proof.py", line 160, in main
-    f"10-й процентиль {np.percentile(wj, 10):.0f} %, 90-й {np.percentile(wj, 90):.0f} %")
-                       ^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 4283, in percentile
-    return _quantile_unchecked(
-           ^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 4555, in _quantile_unchecked
-    return _ureduce(a,
-           ^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 3823, in _ureduce
-    r = func(a, **kwargs)
-        ^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 4722, in _quantile_ureduce_func
-    result = _quantile(arr,
-             ^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/numpy/lib/function_base.py", line 4831, in _quantile
-    slices_having_nans = np.isnan(arr[-1, ...])
-                                  ~~~^^^^^^^^^
-IndexError: index -1 is out of bounds for axis 0 with size 0
+  File "/home/runner/work/Ivan100/Ivan100/pipeline/rice_proof.py", line 181, in main
+    picks_new = random.Random(SEED_NEW).sample(rest, 5)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/random.py", line 456, in sample
+    raise ValueError("Sample larger than population or is negative")
+ValueError: Sample larger than population or is negative
