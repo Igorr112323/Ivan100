@@ -42,10 +42,22 @@ main{flex:1;display:flex;min-height:0}
   border:1px solid var(--line);border-radius:2px;padding:6px 8px;width:216px}
 #legend h4{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
   color:var(--muted);margin-bottom:4px}
-#legend .row{display:flex;align-items:center;gap:8px;height:22px;font-size:12px}
-#legend .sw{width:24px;height:14px;border:1px solid var(--line);flex:0 0 auto}
-#legend .hatch{background-image:repeating-linear-gradient(45deg,var(--ink) 0 1px,transparent 1px 4px)}
+.legrow{display:flex;align-items:center;gap:8px;height:22px;font-size:12px}
+.legsw{width:24px;height:14px;border:1px solid var(--line);flex:0 0 auto}
+.hatch{background-image:repeating-linear-gradient(45deg,var(--ink) 0 1px,transparent 1px 4px)}
 #legend .note{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:4px}
+
+/* ---------- мобильные блоки: на широком экране их нет ---------- */
+#mobar,#mobottom,#legmini,#sheet_close,#taphint{display:none}
+#taphint{position:absolute;left:50%;transform:translateX(-50%);bottom:40px;z-index:5;
+  background:var(--paper);border:1px solid var(--line);border-radius:2px;
+  padding:3px 8px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+#legmini{position:absolute;left:8px;bottom:8px;align-items:center;gap:6px;z-index:5;
+  background:var(--paper);border:1px solid var(--line);border-radius:2px;padding:3px 6px;
+  font-family:var(--mono);font-size:12px;color:var(--ink)}
+#legmini .lm-steps{display:flex;gap:1px}
+#legmini .lm-steps b{display:block;width:20px;height:10px;border:1px solid var(--line)}
+#legmini .lm-l,#legmini .lm-r{font-size:12px;color:var(--muted)}
 
 /* ---------- панель режимов ---------- */
 #modes{position:absolute;left:24px;bottom:24px;width:496px;background:var(--paper);
@@ -115,49 +127,81 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
 /* ---------- мобильная версия 390×844 ---------- */
 @media (max-width:820px){
   body{font-size:16px}
-  #legend .note,#legend h4,#attr,.doc .src{font-size:12px}
-  #app{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
-  #stamp{height:auto;min-height:0;padding:10px 12px;gap:8px;flex-wrap:wrap}
+  .doc .src{font-size:12px}
+  #app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+
+  /* шапка — одна строка, без лишнего текста */
+  #stamp{height:auto;min-height:0;padding:6px 12px;gap:8px;flex-wrap:nowrap;align-items:center}
   #stamp .mark{width:auto}
-  #stamp .mark b{font-size:18px}
-  #stamp .head{order:3;flex:1 0 100%}
-  #stamp .head .big{font-size:14px}
-  #nav{gap:14px}
-  main{display:block;flex:1;min-height:0;height:auto}
-  #mapwrap{height:100%}
-  #legend{left:8px;top:8px;width:170px;padding:4px 6px}
-  #legend .row{height:20px;font-size:12px}
-  #modes{left:0;right:0;bottom:0;width:auto;border-left:0;border-right:0;border-bottom:0;
-    padding:8px 12px 52px;max-height:100%;overflow:auto}
-  #switch button{padding:6px 4px;font-size:13px}
-  #counters{grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px}
-  #counters .cell .v{font-size:16px}
-  #counters .cell .k,#counters .cell .s{line-height:1.2}
-  #limitrow{margin-top:8px;gap:8px}
-  #limitrow .lv{font-size:24px;min-width:76px}
-  #sheet{position:fixed;left:0;right:0;bottom:0;width:auto;min-width:0;
-    border-left:0;border-top:1px solid var(--line);max-height:70dvh;
-    transform:translateY(calc(100% - 46px));transition:transform .18s ease;
-    z-index:20;box-shadow:0 -1px 0 var(--line)}
-  #sheet.open{transform:translateY(0)}
-  #sheet header{cursor:pointer;padding:10px 14px}
-  #sheet header h2{font-size:16px}
-  #sheet header h2::after{content:" ▲";font-size:11px;color:var(--muted)}
-  #sheet.open header h2::after{content:" ▼"}
-  #panel{max-height:52dvh}
-  #scale{bottom:calc(52dvh + 6px)}
-  #attr{display:none}
+  #stamp .mark b{font-size:16px}
+  #stamp .mark small{display:none}
+  #stamp .head{flex:1;min-width:0}
+  #stamp .head .big,#stamp .head .src{display:none}
+  #stamp .head .mo{display:block;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  #nav{display:none}
+
+  /* верхняя полоса: режимы и лимит */
+  #mobar{display:block;border-bottom:1px solid var(--line);padding:6px 8px;background:var(--paper)}
+  #morow1{display:flex;gap:6px;align-items:stretch}
+  #moswitch{flex:1;min-width:0}
+  #moswitch #switch{margin:0}
+  #moswitch #switch button{padding:9px 0;font-size:12px}
+  #moblink #blink{height:100%;padding:0 12px;font-size:13px}
+  #morow2{display:flex;align-items:center;margin-top:6px}
+  #molimit{flex:1;min-width:0}
+  #limitrow{margin-top:0;gap:10px}
+  #limitrow .lv{font-size:20px;min-width:62px;text-align:right}
+  #limitrow .cap{font-size:12px;line-height:1.1}
+  #bound{display:block;margin-top:4px}
+
+  /* карта — всё свободное место */
+  main{display:flex;flex-direction:column;flex:1;min-height:0}
+  #mapwrap{flex:1;min-height:0;position:relative;order:1}
+  #modes,#legend,#attr{display:none}
+  #legmini{display:flex}
+  #taphint{display:block}
+  #scale{left:auto;right:8px;bottom:8px}
+
+  /* нижняя полоса: три числа и кнопки */
+  #mobottom{display:block;border-top:1px solid var(--line);background:var(--paper);order:3}
+  #mocounters{padding:6px 8px 2px}
+  #counters{grid-template-columns:repeat(3,1fr);gap:6px;margin-top:0}
+  #counters .cell .v{font-size:17px}
+  #counters .cell .k{display:none}
+  #counters .cell .ks{display:block;font-size:12px;color:var(--muted);line-height:1.15}
+  #counters .cell .s{display:none}
+  #mobtns{display:flex;gap:6px;padding:4px 8px 8px}
+  #mobtns button{flex:1;background:none;border:1px solid var(--line);border-radius:2px;
+    font:inherit;font-size:13px;padding:9px 2px;cursor:pointer;color:var(--ink)}
+  #mobtns button[aria-current="true"]{background:var(--ink);color:var(--paper);font-weight:600}
+  #mobtns button[data-mob="help"]{flex:0 0 46px}
+
+  /* шторка: закрыта (высота 0), открывается по нажатию и сжимает карту */
+  #sheet{position:static;left:auto;right:auto;bottom:auto;width:auto;min-width:0;
+    border-left:0;border-top:1px solid var(--line);height:0;overflow:hidden;
+    transition:height .18s ease;z-index:5;order:2}
+  #sheet.open{height:58%}
+  #sheet header{display:flex;align-items:baseline;gap:8px;padding:8px 12px;cursor:default}
+  #sheet header h2{font-size:15px}
+  #sheet header h2::after{content:""}
+  #sheet header .meta{flex:1;font-size:12px}
+  #sheet_close{display:block;background:none;border:1px solid var(--line);border-radius:2px;
+    font:inherit;font-size:13px;line-height:1;padding:5px 9px;cursor:pointer;color:var(--ink)}
+  #panel{flex:1;overflow:auto;min-height:0;max-height:none}
+  #total{padding:8px 12px}
+  .doc{padding:12px 12px}
 }
 
 /* ---------- печать: ведомость ---------- */
 @media print{
   @page{size:A4 portrait;margin:12mm 10mm}
   html,body{height:auto;overflow:visible;background:#fff}
-  #mapwrap,#legend,#modes,#stamp,#nav{display:none!important}
+  #mapwrap,#legend,#modes,#stamp,#nav,#mobar,#mobottom,#legmini,#sheet_close,#taphint{display:none!important}
   #app{display:block;height:auto}
   main{display:block;height:auto}
-  #sheet{width:auto;min-width:0;border:0;position:static;transform:none;max-height:none}
-  #panel{overflow:visible;max-height:none}
+  #sheet{width:auto;min-width:0;border:0;position:static;transform:none;
+    max-height:none;height:auto;overflow:visible}
+  #panel{overflow:visible;max-height:none;height:auto}
   #sortbar,#total button,#sheet header{display:none}
   thead th{position:static}
   #total{position:static;border-top:1px solid #000}
@@ -192,6 +236,7 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
     <div class="head">
       <div class="big" id="headline">—</div>
       <div class="src" id="headsrc">—</div>
+      <div class="mo" id="mometa"></div>
     </div>
     <nav id="nav">
       <button data-tab="massif" aria-current="true">Массив</button>
@@ -199,6 +244,11 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
       <button data-tab="econ">Экономика</button>
     </nav>
   </header>
+  <div id="mobar">
+    <div id="morow1"><div id="moswitch"></div><div id="moblink"></div></div>
+    <div id="morow2"><div id="molimit"></div></div>
+    <div id="mobound"></div>
+  </div>
   <main>
     <section id="mapwrap">
       <canvas id="map"></canvas>
@@ -228,12 +278,24 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
         </div>
         <div id="bound">ниже 70 % модель не проверялась</div>
       </div>
+      <div id="legmini"></div>
+      <div id="taphint">нажми на чек</div>
       <div id="scale"></div>
       <div id="attr"></div>
     </section>
+    <div id="mobottom">
+      <div id="mocounters"></div>
+      <div id="mobtns">
+        <button data-mob="massif" aria-current="true">Ведомость</button>
+        <button data-mob="method">Метод</button>
+        <button data-mob="econ">Экономика</button>
+        <button data-mob="help" aria-label="как читать">?</button>
+      </div>
+    </div>
     <aside id="sheet">
       <header id="sheethead"><h2 id="sheet_title">Ведомость чеков</h2>
-        <div class="meta" id="sheet_meta"></div></header>
+        <div class="meta" id="sheet_meta"></div>
+        <button id="sheet_close" aria-label="закрыть">✕</button></header>
       <div id="sortbar"></div>
       <div id="panel"></div>
       <div id="total"><span id="total_txt"></span><span class="spacer"></span>
@@ -268,7 +330,8 @@ const fmt = (v, d=0) => (v==null||isNaN(v)) ? "—" :
   Number(v).toLocaleString("ru-RU",{minimumFractionDigits:d,maximumFractionDigits:d});
 
 /* ---------- состояние ---------- */
-const S = { tab:"massif", mode:"opt", limit:70, sort:"id", desc:false, sel:null, blink:null };
+const S = { tab:"massif", mode:"opt", limit:70, sort:"id", desc:false, sel:null, blink:null,
+            mob:null, card:null };
 
 /* ---------- проекция ---------- */
 const POLY = DATA.checks.map(c => c.poly);
@@ -291,6 +354,7 @@ if (DATA.rgb) { img = new Image(); img.onload = draw; img.src = DATA.rgb; }
 function fit(){
   const dpr = Math.min(2, window.devicePixelRatio||1);
   const w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return;                       // контейнер ещё без размера — придёт observer
   cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
   const sp = PROJ.span();
   const pad = 0.08;
@@ -395,28 +459,50 @@ function counters(){
   const dT = L.yield_prac_t!=null ? L.yield_opt_t - L.yield_prac_t : null;
   const dP = L.yield_prac_t!=null ? (L.yield_opt_t/L.yield_prac_t-1)*100 : null;
   const cells = [
-    {k:"Подача воды на массив", v:fmt(L.water_opt_m3/1e6,2)+" млн м³",
+    {k:"Подача воды на массив", ks:"подача", v:fmt(L.water_opt_m3/1e6,2)+" млн м³",
      s:"одинакова во всех трёх режимах · водный баланс"},
-    {k:"Сбор при выводе чеков", v:fmt(L.yield_prac_t,0)+" т",
+    {k:"Сбор при выводе чеков", ks:"сбор: практика", v:fmt(L.yield_prac_t,0)+" т",
      s:"база: практика хозяйства · расчёт модели"},
-    {k:"Сбор при распределении", v:fmt(L.yield_opt_t,0)+" т",
+    {k:"Сбор при распределении", ks:"сбор: расписание", v:fmt(L.yield_opt_t,0)+" т",
      s:dT==null ? "модель · расчёт модели"
        : `${dT>=0?"+":"−"}${fmt(Math.abs(dT),1)} т к практике (${dP>=0?"+":"−"}${fmt(Math.abs(dP),2)} %)`},
   ];
   $("#counters").innerHTML = cells.map(c =>
     `<div class="cell"><div class="v">${c.v}</div><div class="k">${c.k}</div>
+     <div class="ks">${c.ks}</div>
      <div class="s">${c.s}</div></div>`).join("");
 }
 
 /* ---------- легенда ---------- */
-function legend(){
-  const rows = DATA.legend || [];
-  $("#legrows").innerHTML = rows.map(r =>
-    `<div class="row"><span class="sw ${r.cls||""}" style="${r.style||""}"></span>${r.label}</div>`
+function legrowsHTML(){
+  return (DATA.legend||[]).map(r =>
+    `<div class="row legrow"><span class="sw legsw ${r.cls||""}" style="${r.style||""}"></span>${r.label}</div>`
   ).join("");
-  $("#legnote").textContent = S.mode==="diff"
+}
+function legnote(){
+  return S.mode==="diff"
     ? "разница м³/га: зелёный — добавлено, красный — урезано, серый — без изменений"
     : "м³/га на чек за сезон";
+}
+function legend(){
+  $("#legrows").innerHTML = legrowsHTML();
+  $("#legnote").textContent = legnote();
+  legmini();
+}
+/* компактная легенда для телефона: ступени вместо шести строк */
+function legmini(){
+  const el = $("#legmini");
+  if (!el) return;
+  const steps = S.mode==="diff"
+    ? ["rgba(140,29,12,.95)","rgba(140,29,12,.60)","rgba(27,31,36,.16)",
+       "rgba(108,122,58,.60)","rgba(108,122,58,.95)"]
+    : ["rgba(46,110,126,.22)","rgba(46,110,126,.40)","rgba(46,110,126,.58)",
+       "rgba(46,110,126,.76)","rgba(46,110,126,.92)"];
+  const l = S.mode==="diff" ? "урезано" : "меньше";
+  const r = S.mode==="diff" ? "добавлено" : "больше";
+  el.innerHTML = `<span class="lm-l">${l}</span><i class="lm-steps">` +
+    steps.map(c => `<b style="background:${c}"></b>`).join("") +
+    `</i><span class="lm-r">${r}</span>`;
 }
 
 /* ---------- ведомость ---------- */
@@ -544,23 +630,155 @@ function econ(){
   </div>`;
 }
 
+/* ---------- карточка чека (по нажатию на карту) ---------- */
+function curLimit(){
+  return DATA.modes.limits.find(l => Math.round(l.limit*100) === S.limit);
+}
+function flagsOf(c, i){
+  const r = curLimit().rows[i];
+  return [c.suspect_merge ? "вероятно склейка" : "", r.out ? "выведен из севооборота" : "",
+          c.bank_iou < 0.4 ? "граница не по валу" : ""].filter(Boolean).join(" · ");
+}
+function card(i){
+  const c = DATA.checks[i], L = curLimit(), r = L.rows[i];
+  const opt = r.w_opt / c.area, uni = r.w_uni / c.area;
+  const d = opt - uni;
+  const deficit = S.mode==="uni" ? r.d_uni : r.d_opt;
+  const fl = flagsOf(c, i);
+  $("#sheet_title").textContent = "Чек № " + c.id;
+  $("#sheet_meta").textContent = fmt(c.area,1) + " га · отметка " + fmt(c.elev,2) + " м";
+  $("#sortbar").style.display = "none";
+  $("#total").style.display = "none";
+  $("#panel").scrollTop = 0;
+  $("#panel").innerHTML = `<div class="doc">
+    <div class="kv">
+      <span>площадь, га</span><span>${fmt(c.area,1)}</span>
+      <span>отметка, м</span><span>${fmt(c.elev,2)}</span>
+      <span>по расписанию, м³/га</span><span>${fmt(opt)}</span>
+      <span>поровну, м³/га</span><span>${fmt(uni)}</span>
+      <span>разница, м³/га</span><span>${d>=0?"+":"−"}${fmt(Math.abs(d))}</span>
+      <span>недолив при −${100-S.limit} %, %</span><span>${fmt(deficit,1)}</span>
+    </div>
+    ${fl ? `<p class="flag">${fl}</p>` : ""}
+    <p class="src">${legnote()}</p>
+  </div>`;
+}
+
+/* ---------- справка: легенда и режимы ---------- */
+function help(){
+  $("#sheet_title").textContent = "Как читать";
+  $("#sheet_meta").textContent = "";
+  $("#sortbar").style.display = "none";
+  $("#total").style.display = "none";
+  $("#panel").scrollTop = 0;
+  $("#panel").innerHTML = `<div class="doc">
+    <h3>Цвет чека</h3>
+    ${legrowsHTML()}
+    <p class="src">${legnote()}</p>
+    <h3>Режимы</h3>
+    <p>Нажми на чек — покажу его числа. Кнопка «сравнить» мигает между режимами.</p>
+    <p><b>Поровну</b> — воду делят по площади, весь сезон одинаково.</p>
+    <p><b>По расписанию</b> — лимит распределён по декадам: в кущение режем, в цветение держим.</p>
+    <p><b>Разница</b> — зелёный: чек получил больше, красный: меньше.</p>
+    <h3>Откуда цифры</h3>
+    <p class="src">${DATA.water_line}</p>
+    <p class="src">${DATA.content.disclaimer.value}</p>
+  </div>`;
+}
+
+/* ---------- нажатие по карте ---------- */
+function invXY(x, y){
+  return [ (x - VIEW.ox) / VIEW.k / KX + BB[0], BB[3] - (y - VIEW.oy) / VIEW.k ];
+}
+function pip(lon, lat, poly){
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function hitTest(x, y){
+  const [lon, lat] = invXY(x, y);
+  for (let i = 0; i < DATA.checks.length; i++)
+    if (pip(lon, lat, DATA.checks[i].poly)) return i;
+  /* пальцем в мелкий чек не попасть: берём ближайший в пределах 45 px */
+  let best = -1, bd = 45;
+  DATA.checks.forEach((c, i) => {
+    let sx = 0, sy = 0;
+    c.poly.forEach(([lo, la]) => { const [X, Y] = px(lo, la); sx += X; sy += Y; });
+    const n = c.poly.length, d = Math.hypot(sx/n - x, sy/n - y);
+    if (d < bd){ bd = d; best = i; }
+  });
+  return best;
+}
+function onMapTap(e){
+  const rect = cv.getBoundingClientRect();
+  const i = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+  if (i < 0){ S.card = null; if (window.innerWidth <= 820) openSheet(false); return; }
+  const hint = $("#taphint"); if (hint) hint.style.display = "none";
+  S.sel = DATA.checks[i].id;
+  draw();
+  if (window.innerWidth <= 820){
+    S.card = i; S.tab = "massif"; card(i); openSheet(true);
+    vedomost(); S.card = i; card(i);
+  } else {
+    S.card = null; vedomost();
+  }
+}
+function openSheet(v){
+  $("#sheet").classList.toggle("open", !!v);
+  if (!v) S.card = null;
+}
+
+/* ---------- раскладка: телефон ↔ широкий экран ---------- */
+function layout(){
+  const mob = window.innerWidth <= 820;
+  if (mob === S.mob) return;
+  S.mob = mob;
+  if (mob){
+    $("#moswitch").appendChild($("#switch"));
+    $("#blink").textContent = "сравнить";
+    $("#moblink").appendChild($("#blink"));
+    $("#molimit").appendChild($("#limitrow"));
+    $("#mobound").appendChild($("#bound"));
+    $("#mocounters").appendChild($("#counters"));
+  } else {
+    $("#modes .lbl").after($("#switch"));
+    $("#blink").textContent = "Мигание: поровну ↔ по расписанию";
+    $("#modefoot").prepend($("#blink"));
+    $("#modehint").after($("#counters"));
+    $("#counters").after($("#limitrow"));
+    $("#limitrow").after($("#bound"));
+    openSheet(false);
+  }
+  fit();
+}
+
 /* ---------- переключение ---------- */
 function setMode(m){
   S.mode = m;
   document.querySelectorAll("#switch button").forEach(b =>
     b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
-  legend(); draw(); if (S.tab==="massif") vedomost();
+  legend(); draw();
+  if (S.card != null) card(S.card);
+  else if (S.tab==="massif") vedomost();
 }
 function setLimit(v){
   S.limit = Math.max(70, Math.min(100, +v));
   $("#limval").textContent = "−" + (100 - S.limit) + " %";
   $("#bound").style.display = S.limit <= 70 ? "block" : "none";
-  counters(); draw(); if (S.tab==="massif") vedomost(); if (S.tab==="econ") econ();
+  counters(); draw();
+  if (S.card != null) card(S.card);
+  else { if (S.tab==="massif") vedomost(); if (S.tab==="econ") econ(); }
 }
 function setTab(t){
   S.tab = t;
+  S.card = null;
   document.querySelectorAll("#nav button").forEach(b =>
     b.setAttribute("aria-current", String(b.dataset.tab === t)));
+  document.querySelectorAll("#mobtns button").forEach(b =>
+    b.setAttribute("aria-current", String(b.dataset.mob === t)));
   if (t==="massif") vedomost(); else if (t==="method") method(); else econ();
 }
 
@@ -594,15 +812,29 @@ function init(){
       `${DATA.content.disclaimer.value}. Отметки чеков — ${c.elev.source_short || c.elev.source}.`;
     window.print();
   };
-  $("#sheethead").onclick = () => { if (window.innerWidth <= 820) $("#sheet").classList.toggle("open"); };
+  $("#sheet_close").onclick = () => openSheet(false);
+  document.querySelectorAll("#mobtns button").forEach(b => b.onclick = () => {
+    if (b.dataset.mob === "help"){
+      help();
+      document.querySelectorAll("#mobtns button").forEach(x =>
+        x.setAttribute("aria-current", String(x === b)));
+      S.card = null;
+    } else setTab(b.dataset.mob);
+    openSheet(true);
+  });
+  cv.addEventListener("click", onMapTap);
+  $("#mometa").textContent = `${c.massif.checks} чека · ${fmt(c.massif.area_ha,1)} га`;
   const q = new URLSearchParams(location.search);
   const lim = q.get("limit");
   $("#limit").value = lim ? Math.max(70, Math.min(100, +lim)) : (DATA.limit_default || 70);
+  layout();
   setLimit($("#limit").value);
   setTab("massif");
   fit();
-  window.addEventListener("resize", () => { fit(); });
-  if (window.innerWidth <= 820) $("#sheet").classList.remove("open");
+  window.addEventListener("resize", () => { layout(); fit(); });
+  window.addEventListener("orientationchange", () => setTimeout(() => { layout(); fit(); }, 250));
+  window.addEventListener("load", () => fit());
+  if (window.ResizeObserver) new ResizeObserver(() => fit()).observe($("#mapwrap"));
 }
 init();
 </script>
