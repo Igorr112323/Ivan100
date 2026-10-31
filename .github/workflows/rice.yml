@@ -130,7 +130,7 @@ jobs:
           done
           # основной массив возвращаем как был: контрольный прогон его не меняет
           git checkout -- data/checks.geojson data/checks_series.json data/aoi.json \
-            data/rice_proof.json data/sentinel data/verify data/_log 2>/dev/null
+            data/rice_proof.json data/sentinel data/verify 2>/dev/null
           echo "восстановлен основной массив, журналы контрольного — в data/_log/*_$SLOT.txt"
 
       - name: Фиксация данных

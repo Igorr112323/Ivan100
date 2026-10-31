@@ -434,7 +434,7 @@ def main() -> None:
                 break
         if far:
             picks.append(c)
-        if len(picks) > pick:
+        if len(picks) >= 6:  # в отчёт идёт весь список: сколько массивов нашлось
             break
     log("")
     log(f"=== неперекрывающиеся массивы (разнос не менее {sep_km:.0f} км) ===")
