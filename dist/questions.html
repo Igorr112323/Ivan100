@@ -1,0 +1,33 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>АКВАЧЕК — пять злых вопросов</title><style>
+:root{--paper:#EFEAE0;--ink:#1B1F24;--seal:#B4341F;--muted:#6B6558;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:"Golos Text","Segoe UI",system-ui,sans-serif;
+  font-size:15px;line-height:1.4;padding:32px 40px;max-width:900px;margin:0 auto}
+h1{font-size:24px;font-weight:600;letter-spacing:.01em}
+.sub{font-family:var(--mono);font-size:12px;color:var(--muted);margin:4px 0 20px}
+.q{border-top:1px solid var(--ink);padding:12px 0 14px}
+.q .h{font-size:17px;font-weight:600;margin-bottom:6px}
+.q p{margin:0 0 4px;max-width:78ch}
+.q .src{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:6px}
+.stamp{margin-top:24px;border:1px solid var(--ink);border-radius:2px;padding:12px 16px;
+  font-family:var(--mono);font-size:12px;color:var(--muted)}
+@media print{@page{size:A4 portrait;margin:14mm 14mm}
+  body{background:#fff;padding:0;font-size:11px}
+  .q{padding:8px 0 9px} .q .h{font-size:13px} h1{font-size:17px}
+  .q p{max-width:none} .q .src{font-size:9px} .stamp{font-size:9px}}
+</style></head><body>
+<h1>АКВАЧЕК — пять злых вопросов</h1>
+<div class="sub">модельный массив · сезон 2025 · полевых измерений нет · 51 чека, 1293.2 га, Красноармейский район</div>
+<div class="q"><div class="h">Откуда знаете, что эффект реален?</div><p>Плацебо-тест: выигрыш 0.54 % лежит внутри случайных перестановок свойств чеков (медиана 1.29 %, 95-й процентиль 3.87 %) — сам по себе он ничего не доказывает.</p>
+      <p>Доказуемое другое: хозяйство не добирает 80 992 м³ своего лимита (0.46 % от 17.66 млн м³). Это видно в данных, а не в модели.</p><div class="src">источник: расчёт модели · Sentinel-2 L2A · ERA5</div></div><div class="q"><div class="h">Почему числа изменились против заявки?</div><p>В заявке массив был предварительной оценкой; в продукте он переоцифрован по признаку риса, пруды и лиманы исключены, границы уточнены: 51 чека, 1293.2 га.</p>
+      <p>₽/га пересчитаны от фактического урожая на каждом лимите: при −30 % было 11 860 ₽/га, стало 7 932 (410.3 т × 25 000 ₽ / 1293.2 га).</p><div class="src">источник: расчёт модели · 25 000 ₽/т — цена, принятая в заявке</div></div><div class="q"><div class="h">Откуда отметки и что будет при ошибке?</div><p>Отметки чеков — публичные Terrain Tiles z=13, систематическая ошибка не измерена, полевой нивелировки нет.</p>
+      <p>Монте-Карло: эффект держится при точности отметок лучше 0,4 м; текущий источник её не обеспечивает — задача полевого этапа 2027.</p><div class="src">источник: Монте-Карло по массиву · Terrain Tiles z=13</div></div><div class="q"><div class="h">Кто платит?</div><p>Платит хозяйство: лимит и договор водопользования его, система не добавляет ничего к счёту за воду.</p>
+      <p>Расход на внедрение — 0 ₽ оборудования: снимки Sentinel-2 L2A и сводка ERA5 бесплатны, датчиков и обходов не нужно. Выигрыш при −30 %: 7 932 ₽/га, 10.26 млн ₽ на массив за сезон.</p><div class="src">источник: расчёт модели · открытые данные</div></div><div class="q"><div class="h">Это рис или просто поливное поле?</div><p>Рис подтверждён по спектру на 49 чеках из 51: вода под пологом (NDWI > 0) на ≥ 50 % площади, NDVI > 0,55 на пике, осенью NDWI ≤ 0.</p>
+      <p>2 чека критерий не прошли — в ведомости они помечены флагом. Это честная дыра в данных, а не «весь массив — рис».</p><div class="src">источник: Sentinel-2 L2A, 4 даты сезона 2025</div></div>
+<div class="stamp">экономии воды нет; подача та же, потери видны по чекам<br>
+эффект держится при точности отметок лучше 0,4 м; текущий источник (публичные Terrain Tiles z=13) её не обеспечивает — задача полевого этапа 2027<br>
+в заявке — предварительная оценка массива; в продукте массив переоцифрован по признаку риса, пруды и лиманы исключены, границы уточнены</div>
+</body></html>

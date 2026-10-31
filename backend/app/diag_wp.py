@@ -475,6 +475,15 @@ def main():
     if which in ("all", "ky"):
         results["ky"] = test_ky()
         print(json.dumps(results["ky"], ensure_ascii=False, indent=2))
+    if which in ("all", "plimits"):
+        results["placebo_limits"] = test_placebo_limits()
+        print(json.dumps(results["placebo_limits"], ensure_ascii=False, indent=2))
+    if which in ("all", "binary"):
+        results["reproduce_practice"] = test_reproduce_practice()
+        print(json.dumps(results["reproduce_practice"], ensure_ascii=False, indent=2))
+    if which in ("all", "money"):
+        results["money"] = test_money()
+        print(json.dumps(results["money"], ensure_ascii=False, indent=2))
     if which in ("all", "baselines"):
         results["baselines"] = test_baselines()
         print(json.dumps(results["baselines"], ensure_ascii=False, indent=2))
@@ -485,3 +494,197 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# --------------------- ТЕСТ 1.1: плацебо при жёстких лимитах
+
+def placebo_at(deficit: float, runs: int = 100, seed: int = 20251031):
+    checks, meta, season, perc_base, _e, _p = ctx()
+    base = engine.solve_lp(checks, _e, _p, deficit, KY)
+    prac = practice(checks, _e, _p, deficit)
+    real = gain_pct(base["yield_tons"], prac["yield_tons"])
+    rng = random.Random(seed)
+    gains = []
+    for _ in range(runs):
+        order = list(range(len(checks)))
+        rng.shuffle(order)
+        sh = [dc_replace(checks[i], dz_m=checks[order[i]].dz_m,
+                         kpd=checks[order[i]].kpd) for i in range(len(checks))]
+        d = engine.season_demands(sh, season, perc_base)
+        r = engine.solve_lp(sh, d["etm"], d["perc"], deficit, KY)
+        if not r["ok"]:
+            continue
+        p = practice(sh, d["etm"], d["perc"], deficit)
+        gains.append(gain_pct(r["yield_tons"], p["yield_tons"]))
+    gains.sort()
+    n = len(gains)
+    p95 = gains[min(n - 1, int(round(0.95 * (n - 1))))]
+    return {
+        "deficit_pct": round(deficit * 100),
+        "limit_pct": round((1 - deficit) * 100),
+        "runs": n,
+        "real_gain_pct": real,
+        "placebo_median_pct": round(gains[n // 2], 3),
+        "placebo_p05_pct": round(gains[int(round(0.05 * (n - 1)))], 3),
+        "placebo_p95_pct": round(p95, 3),
+        "share_above_real_pct": round(100.0 * sum(1 for g in gains if g >= real) / n, 1),
+        "verdict": ("реальный выигрыш ВЫШЕ 95-го процентиля плацебо" if real > p95
+                    else "реальный выигрыш НЕ выше 95-го процентиля плацебо"),
+    }
+
+
+def test_placebo_limits():
+    out = {"test": "плацебо при жёстких лимитах", "rows": []}
+    for d in (0.25, 0.30, 0.35):
+        out["rows"].append(placebo_at(d))
+    return out
+
+
+# --------------------- ТЕСТ 1.2: воспроизводит ли модель практику
+
+def lp_binary(checks, etm, perc, deficit=DEFICIT, ky=KY, capacity=CAPACITY):
+    """Модели дано право полностью сушить чек: бинарное «в севообороте / нет».
+
+    Высушенный чек не платит ни фильтрацию, ни разовое затопление — так же, как
+    у практики. Если оптимум сам выберет вывести часть чеков, значит целевая
+    функция в порядке, а «идеальный агроном хуже практики» объяснялся
+    запретом на вывод, а не дефектом модели.
+    """
+    n = len(checks)
+    p_dec = len(etm[0])
+    w = engine.et_weights(etm[0])
+    dec_len = engine.decade_lengths(engine.SEASON_DAYS)
+
+    prob = pulp.LpProblem("binary", pulp.LpMinimize)
+    z = {i: pulp.LpVariable(f"z_{i}", cat="Binary") for i in range(n)}
+    d1 = {(i, p): pulp.LpVariable(f"d1_{i}_{p}", lowBound=0, upBound=engine.SEG1)
+          for i in range(n) for p in range(p_dec)}
+    d2 = {(i, p): pulp.LpVariable(f"d2_{i}_{p}", lowBound=0, upBound=1.0 - engine.SEG1)
+          for i in range(n) for p in range(p_dec)}
+
+    # высушенный чек теряет весь урожай: без этого слагаемого задача считает
+    # вывод чека бесплатным (дефицит 0, воды 0) и сушит всё подряд
+    prob += (
+        pulp.lpSum(
+            checks[i].area_ha * Y_HA * ky * engine.PHASES_KY_W[engine.phase_of_dec(p)] * w[p]
+            * (engine.SLOPE1 * d1[(i, p)] + engine.SLOPE2 * d2[(i, p)])
+            for i in range(n) for p in range(p_dec)
+        )
+        + pulp.lpSum(checks[i].area_ha * Y_HA * (1.0 - z[i]) for i in range(n))
+    )
+    for i in range(n):
+        for p in range(p_dec):
+            prob += d1[(i, p)] + d2[(i, p)] <= z[i]      # высушенный чек: дефицит 100 %
+        prob += pulp.lpSum(
+            ky * engine.PHASES_KY_W[engine.phase_of_dec(p)] * w[p]
+            * (engine.SLOPE1 * d1[(i, p)] + engine.SLOPE2 * d2[(i, p)])
+            for p in range(p_dec)
+        ) <= z[i]
+        for p in range(p_dec):
+            # пока чек в севообороте, дефицит не больше единицы
+            prob += d1[(i, p)] + d2[(i, p)] <= 1.0
+
+    # высушенный чек не платит ни испарение, ни фильтрацию, ни разовое затопление
+    water = pulp.lpSum(
+        checks[i].area_ha * ((etm[i][p] * z[i] - etm[i][p] * (d1[(i, p)] + d2[(i, p)])
+                              + perc[i][p] * z[i]) / checks[i].kpd
+                             + engine.INITIAL_MM / checks[i].kpd * z[i] / p_dec) * MM
+        for i in range(n) for p in range(p_dec)
+    )
+    nd = engine.net_demand(checks, etm, perc)
+    fixed_all = sum(checks[i].area_ha * engine.initial_mm(checks[i].kpd) * MM for i in range(n))
+    variable_all = sum(checks[i].area_ha * sum(nd[i]) / checks[i].kpd * MM for i in range(n))
+    prob += water <= (1.0 - deficit) * (fixed_all + variable_all)
+    for i in range(n):
+        for p in range(p_dec):
+            prob += ((etm[i][p] * (1 - d1[(i, p)] - d2[(i, p)]) + perc[i][p] * z[i])
+                     / checks[i].kpd) <= capacity * 8.64 * dec_len[p]
+
+    status = prob.solve(pulp.PULP_CBC_CMD(msg=False))
+    if pulp.LpStatus[status] != "Optimal":
+        return {"ok": False, "status": pulp.LpStatus[status]}
+    dry = [i for i in range(n) if (z[i].value() or 0) < 0.5]
+    deltas = [[float((d1[(i, p)].value() or 0) + (d2[(i, p)].value() or 0)) for p in range(p_dec)]
+              for i in range(n)]
+    fracs = [max(0.0, 1.0 - sum(ky * engine.PHASES_KY_W[engine.phase_of_dec(p)] * w[p]
+                                * (engine.SLOPE1 * min(deltas[i][p], engine.SEG1)
+                                   + engine.SLOPE2 * max(0.0, deltas[i][p] - engine.SEG1))
+                                for p in range(p_dec)))
+             if i not in dry else 0.0 for i in range(n)]
+    water_m3 = sum(
+        checks[i].area_ha * ((sum((etm[i][p] * (1 - deltas[i][p]) + perc[i][p])
+                                  for p in range(p_dec)) + engine.INITIAL_MM) / checks[i].kpd) * MM
+        for i in range(n) if i not in dry
+    )
+    return {
+        "ok": True, "dry_count": len(dry),
+        "dry_ids": [checks[i].id for i in dry],
+        "dry_area_ha": round(sum(checks[i].area_ha for i in dry), 1),
+        "water_m3": water_m3,
+        "yield_tons": sum(checks[i].area_ha * Y_HA * fracs[i] for i in range(n)),
+    }
+
+
+def test_reproduce_practice():
+    out = {"test": "воспроизводит ли оптимум практику, если дать право сушить чек",
+           "deficit": DEFICIT, "ky": KY, "rows": []}
+    for deficit in (0.15, 0.30):
+        checks, meta, season, perc_base, etm, perc = ctx()
+        prac = practice(checks, etm, perc, deficit)
+        b = lp_binary(checks, etm, perc, deficit)
+        soft = engine.solve_lp(checks, etm, perc, deficit, KY)
+        row = {
+            "deficit_pct": round(deficit * 100),
+            "practice_fallows": len(prac["fallowed"]),
+            "practice_yield_t": round(prac["yield_tons"], 1),
+            "practice_water_mln_m3": round(prac["water_m3"] / 1e6, 3),
+            "optimizer_soft_fallows": len(soft["fallowed"]),
+            "optimizer_soft_yield_t": round(soft["yield_tons"], 1),
+        }
+        if b["ok"]:
+            row.update({
+                "binary_dry": b["dry_count"], "binary_dry_area_ha": b["dry_area_ha"],
+                "binary_yield_t": round(b["yield_tons"], 1),
+                "binary_water_mln_m3": round(b["water_m3"] / 1e6, 3),
+                "same_as_practice": b["dry_count"] == len(prac["fallowed"]),
+            })
+        else:
+            row.update({"binary_ok": False, "binary_status": b.get("status")})
+        out["rows"].append(row)
+    return out
+
+
+# --------------------- ТЕСТ 1.3: пересчёт денег от фактического урожая
+
+def test_money():
+    """₽/га считаются от фактического урожая практики на каждом уровне лимита."""
+    rows = []
+    for slot in ("", "_b", "_c"):
+        path = ROOT / "data" / "optimization" / f"grid{slot}.json"
+        if not path.exists():
+            continue
+        g = json.loads(path.read_text(encoding="utf-8"))
+        area = g["area_ha"]
+        for r in g["rows"]:
+            base_yield = r["yield_tons"]["fallowing"] / area
+            gain_t = r["yield_tons"]["capped"] - r["yield_tons"]["fallowing"]
+            r["economics"]["base_yield_t_ha"] = round(base_yield, 3)
+            r["economics"]["per_ha_rub"] = round(gain_t * 1000.0 * engine.PRICE_RUB_KG / area)
+            r["economics"]["array_rub"] = round(gain_t * 1000.0 * engine.PRICE_RUB_KG)
+        path.write_text(json.dumps(g, ensure_ascii=False), encoding="utf-8")
+        web = ROOT / "web" / "public" / "data" / f"grid{slot}.json"
+        if web.exists():
+            web.write_text(json.dumps(g, ensure_ascii=False), encoding="utf-8")
+        for L in (1.00, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60):
+            r = next((x for x in g["rows"] if abs(x["limit"] - L) < 1e-9), None)
+            if r:
+                rows.append({
+                    "massif": slot or " основной", "limit_pct": round(L * 100),
+                    "base_yield_t_ha": round(r["yield_tons"]["fallowing"] / area, 3),
+                    "gain_pct": r["gain_pct"]["capped_vs_fallowing"],
+                    "gain_t": round(r["yield_tons"]["capped"] - r["yield_tons"]["fallowing"], 1),
+                    "per_ha_rub": r["economics"]["per_ha_rub"],
+                    "array_mln_rub": round(r["economics"]["array_rub"] / 1e6, 3),
+                })
+    return {"test": "пересчёт ₽/га от фактического урожая практики на каждом лимите",
+            "rows": rows}

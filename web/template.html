@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>АКВАЧЕК — контроль водного баланса рисового массива</title>
+<style>
+:root{
+  --paper:#EFEAE0; --ink:#1B1F24; --water:#2E6E7E; --veg:#6C7A3A;
+  --dry:#C14B2A; --seal:#B4341F; --line:#1B1F24; --muted:#6B6558;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:"Golos Text","Segoe UI",system-ui,sans-serif;font-size:18px;
+  line-height:1.35;-webkit-font-smoothing:antialiased;
+}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+
+/* ---------- шапка-штамп 96 px ---------- */
+#stamp{height:96px;min-height:96px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:32px;padding:0 32px 0 24px}
+#stamp .mark{width:200px}
+#stamp .mark b{display:block;font-size:22px;letter-spacing:.02em;font-weight:600}
+#stamp .mark small{display:block;font-size:12px;color:var(--muted);font-family:var(--mono)}
+#stamp .head{flex:1;min-width:0}
+#stamp .head .big{font-size:22px;line-height:1.15;font-weight:600}
+#stamp .head .src{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:4px}
+#nav{display:flex;gap:20px;flex:0 0 auto}
+#nav button{background:none;border:0;font:inherit;font-size:14px;color:var(--ink);
+  padding:6px 0;border-bottom:2px solid transparent;cursor:pointer}
+#nav button[aria-current="true"]{border-bottom-color:var(--seal);font-weight:600}
+
+main{flex:1;display:flex;min-height:0}
+#mapwrap{position:relative;flex:1;min-width:0;background:#E3DED2}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* ---------- легенда ---------- */
+#legend{position:absolute;left:24px;top:20px;background:var(--paper);
+  border:1px solid var(--line);border-radius:2px;padding:6px 8px;width:216px}
+#legend h4{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:4px}
+#legend .row{display:flex;align-items:center;gap:8px;height:22px;font-size:12px}
+#legend .sw{width:24px;height:14px;border:1px solid var(--line);flex:0 0 auto}
+#legend .hatch{background-image:repeating-linear-gradient(45deg,var(--ink) 0 1px,transparent 1px 4px)}
+#legend .note{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:4px}
+
+/* ---------- панель режимов ---------- */
+#modes{position:absolute;left:24px;bottom:24px;width:496px;background:var(--paper);
+  border:1px solid var(--line);border-radius:2px;padding:12px 20px 14px}
+#modes .lbl{font-size:12px;font-family:var(--mono);letter-spacing:.08em;color:var(--muted);
+  text-transform:uppercase}
+#switch{display:flex;gap:0;margin:8px 0 10px;border:1px solid var(--line);border-radius:2px}
+#switch button{flex:1;background:none;border:0;border-right:1px solid var(--line);
+  font:inherit;font-size:14px;padding:8px 4px;cursor:pointer;color:var(--ink)}
+#switch button:last-child{border-right:0}
+#switch button[aria-pressed="true"]{background:var(--ink);color:var(--paper);font-weight:600}
+#blink{font-size:12px;background:none;border:1px solid var(--line);border-radius:2px;
+  padding:5px 10px;cursor:pointer;font-family:inherit;color:var(--ink)}
+#modefoot{display:flex;align-items:center;gap:10px;margin:8px 0 0}
+#waterline{flex:1;font-size:12px;font-family:var(--mono);color:var(--muted)}
+#counters{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
+#counters .cell .v{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.01em}
+#counters .cell .k{font-size:12px;color:var(--muted)}
+#counters .cell .s{font-size:12px;color:var(--muted);font-family:var(--mono)}
+#limitrow{display:flex;align-items:center;gap:12px;margin-top:12px}
+#limitrow input[type=range]{flex:1;accent-color:var(--seal)}
+#limitrow .lv{font-family:var(--mono);font-size:32px;font-weight:600;min-width:96px}
+#limitrow .cap{font-size:12px;color:var(--muted);font-family:var(--mono)}
+#bound{font-size:12px;color:var(--seal);font-family:var(--mono);margin-top:6px;display:none}
+#scale{position:absolute;left:24px;bottom:0;font-family:var(--mono);font-size:12px;
+  color:var(--ink);background:var(--paper);padding:1px 4px}
+#attr{position:absolute;right:8px;bottom:4px;font-family:var(--mono);font-size:12px;
+  color:var(--muted);background:rgba(239,234,224,.8);padding:1px 4px}
+
+/* ---------- правая колонка ---------- */
+#sheet{width:340px;min-width:340px;border-left:1px solid var(--line);
+  display:flex;flex-direction:column;background:var(--paper)}
+#sheet header{padding:12px 20px 8px;border-bottom:1px solid var(--line)}
+#sheet header h2{font-size:20px;font-weight:600}
+#sheet header .meta{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+#panel{flex:1;overflow:auto;min-height:0}
+#sortbar{display:flex;gap:10px;padding:6px 16px 6px 20px;border-bottom:1px solid var(--line);
+  font-size:12px;align-items:center}
+#sortbar button{background:none;border:0;font:inherit;font-size:12px;cursor:pointer;
+  color:var(--muted);text-decoration:underline dotted}
+#sortbar button.on{color:var(--ink);font-weight:600;text-decoration:none}
+#sortbar .spacer{flex:1}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+thead th{position:sticky;top:0;background:var(--paper);border-bottom:1px solid var(--line);
+  text-align:right;padding:6px 6px;font-weight:600;font-size:12px;color:var(--muted)}
+thead th:first-child,tbody td:first-child{text-align:left}
+tbody td{text-align:right;padding:4px 6px;border-bottom:1px solid rgba(27,31,36,.12)}
+tbody tr:hover{background:rgba(46,110,126,.08)}
+tbody tr.out td{color:var(--seal)}
+tbody tr.sel{background:rgba(180,52,31,.10)}
+#total{position:sticky;bottom:0;background:var(--paper);border-top:1px solid var(--line);
+  padding:8px 20px;font-family:var(--mono);font-size:13px;display:flex;gap:12px;align-items:center}
+#total .spacer{flex:1}
+#total button{font-size:12px;font-family:inherit;background:none;border:1px solid var(--line);
+  border-radius:2px;padding:4px 10px;cursor:pointer;color:var(--ink)}
+.doc{padding:16px 20px;font-size:13px;line-height:1.5}
+.doc h3{font-size:15px;font-weight:600;margin:14px 0 4px}
+.doc h3:first-child{margin-top:0}
+.doc p{margin:0 0 8px}
+.doc ul{margin:0 0 8px 18px}
+.doc .kv{display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-family:var(--mono);font-size:12px}
+.doc .kv span:nth-child(even){text-align:right}
+.doc .src{color:var(--muted);font-family:var(--mono);font-size:12px}
+.flag{font-size:12px;color:var(--seal)}
+
+/* ---------- мобильная версия 390×844 ---------- */
+@media (max-width:820px){
+  body{font-size:16px}
+  #legend .note,#legend h4,#attr,.doc .src{font-size:12px}
+  #app{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+  #stamp{height:auto;min-height:0;padding:10px 12px;gap:8px;flex-wrap:wrap}
+  #stamp .mark{width:auto}
+  #stamp .mark b{font-size:18px}
+  #stamp .head{order:3;flex:1 0 100%}
+  #stamp .head .big{font-size:14px}
+  #nav{gap:14px}
+  main{display:block;flex:1;min-height:0;height:auto}
+  #mapwrap{height:100%}
+  #legend{left:8px;top:8px;width:170px;padding:4px 6px}
+  #legend .row{height:20px;font-size:12px}
+  #modes{left:0;right:0;bottom:0;width:auto;border-left:0;border-right:0;border-bottom:0;
+    padding:8px 12px 10px;max-height:56dvh;overflow:auto}
+  #counters{grid-template-columns:repeat(3,1fr);gap:6px}
+  #counters .cell .v{font-size:19px}
+  #sheet{position:fixed;left:0;right:0;bottom:0;width:auto;min-width:0;
+    border-left:0;border-top:1px solid var(--line);max-height:70dvh;
+    transform:translateY(calc(100% - 46px));transition:transform .18s ease;
+    z-index:20;box-shadow:0 -1px 0 var(--line)}
+  #sheet.open{transform:translateY(0)}
+  #sheet header{cursor:pointer;padding:10px 14px}
+  #sheet header h2{font-size:16px}
+  #sheet header h2::after{content:" ▲";font-size:11px;color:var(--muted)}
+  #sheet.open header h2::after{content:" ▼"}
+  #panel{max-height:52dvh}
+  #scale{bottom:calc(52dvh + 6px)}
+  #attr{display:none}
+}
+
+/* ---------- печать: ведомость ---------- */
+@media print{
+  @page{size:A4 portrait;margin:12mm 10mm}
+  html,body{height:auto;overflow:visible;background:#fff}
+  #mapwrap,#legend,#modes,#stamp,#nav{display:none!important}
+  #app{display:block;height:auto}
+  main{display:block;height:auto}
+  #sheet{width:auto;min-width:0;border:0;position:static;transform:none;max-height:none}
+  #panel{overflow:visible;max-height:none}
+  #sortbar,#total button,#sheet header{display:none}
+  thead th{position:static}
+  #total{position:static;border-top:1px solid #000}
+  #printhead{display:block!important}
+  #printfoot{display:flex!important}
+  table{font-size:8.5px}
+  thead th,.flag{font-size:8.5px}
+  tbody td,thead th{padding:.5px 3px;border-bottom:.5px #999 solid}
+  tbody tr:nth-child(5n){border-bottom:1px #000 solid}
+}
+#printfoot{display:none}
+#printhead{display:none;margin-bottom:6px}
+#printhead .ph-title{display:flex;justify-content:space-between;align-items:flex-end;
+  border-bottom:1px solid #000;padding-bottom:4px}
+#printhead .ph-title b{font-size:14px;letter-spacing:.04em}
+#printhead .ph-doc{font-size:13px;font-weight:600;letter-spacing:.06em}
+#printhead .ph-grid{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;
+  font-family:var(--mono);font-size:9px;margin-top:4px}
+#printhead .ph-grid span:nth-child(odd){color:#444}
+#printfoot{justify-content:space-between;align-items:flex-end;margin-top:8px;
+  border-top:1px solid #000;padding-top:5px;font-family:var(--mono);font-size:9px}
+#printfoot .pf-stamp{width:58px;height:58px;border:1px solid #000;display:flex;
+  align-items:center;justify-content:center;font-size:9px}
+#printfoot .pf-note{color:#444;margin-top:6px}
+#printhead{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="stamp">
+    <div class="mark"><b>АКВАЧЕК</b></div>
+    <div class="head">
+      <div class="big" id="headline">—</div>
+      <div class="src" id="headsrc">—</div>
+    </div>
+    <nav id="nav">
+      <button data-tab="massif" aria-current="true">Массив</button>
+      <button data-tab="method">Метод</button>
+      <button data-tab="econ">Экономика</button>
+    </nav>
+  </header>
+  <main>
+    <section id="mapwrap">
+      <canvas id="map"></canvas>
+      <div id="legend">
+        <h4 id="legtitle">Состояние чека</h4>
+        <div id="legrows"></div>
+        <div class="note" id="legnote"></div>
+      </div>
+      <div id="modes">
+        <div class="lbl">Распределение воды</div>
+        <div id="switch">
+          <button data-mode="uni" aria-pressed="true">Поровну</button>
+          <button data-mode="opt" aria-pressed="false">По фазам</button>
+          <button data-mode="diff" aria-pressed="false">Разница</button>
+        </div>
+        <div id="modefoot">
+          <button id="blink">Мигание: поровну ↔ по фазам</button>
+          <span id="waterline"></span>
+        </div>
+        <div id="counters"></div>
+        <div id="limitrow">
+          <div class="lv" id="limval">−15 %</div>
+          <input type="range" id="limit" min="70" max="100" step="1" value="85">
+          <div class="cap">лимит<br>водоподачи</div>
+        </div>
+        <div id="bound">ниже 70 % модель не проверялась</div>
+      </div>
+      <div id="scale"></div>
+      <div id="attr"></div>
+    </section>
+    <aside id="sheet">
+      <header id="sheethead"><h2 id="sheet_title">Ведомость чеков</h2>
+        <div class="meta" id="sheet_meta"></div></header>
+      <div id="sortbar"></div>
+      <div id="panel"></div>
+      <div id="total"><span id="total_txt"></span><span class="spacer"></span>
+        <button id="pdf">Ведомость в PDF</button></div>
+    </aside>
+  </main>
+</div>
+<div id="printhead">
+  <div class="ph-title">
+    <div><b>АКВАЧЕК</b> · контроль водного баланса рисового массива</div>
+    <div class="ph-doc">ВЕДОМОСТЬ ВОДОПОДАЧИ № ____</div>
+  </div>
+  <div class="ph-grid">
+    <span>массив</span><span id="ph_mass"></span>
+    <span>декада</span><span>с «___» ________ 2025 г. &nbsp; по «___» ________ 2025 г.</span>
+    <span>лимит водоподачи</span><span id="ph_limit"></span>
+    <span>снимок</span><span id="ph_img"></span>
+    <span>сформировано</span><span id="ph_date"></span>
+  </div>
+</div>
+<div id="printfoot">
+  <div class="pf-stamp">М. П.</div>
+  <div class="pf-sign">
+    <div>Начальник участка _______________ / _______________________</div>
+    <div class="pf-note" id="pf_note"></div>
+  </div>
+</div>
+<script>
+const DATA = __DATA__;
+const $ = s => document.querySelector(s);
+const fmt = (v, d=0) => (v==null||isNaN(v)) ? "—" :
+  Number(v).toLocaleString("ru-RU",{minimumFractionDigits:d,maximumFractionDigits:d});
+
+/* ---------- состояние ---------- */
+const S = { tab:"massif", mode:"uni", limit:70, sort:"id", desc:false, sel:null, blink:null };
+
+/* ---------- проекция ---------- */
+const POLY = DATA.checks.map(c => c.poly);
+let BB = [1e9,1e9,-1e9,-1e9];
+for (const p of POLY) for (const [lon,lat] of p){
+  BB[0]=Math.min(BB[0],lon); BB[1]=Math.min(BB[1],lat);
+  BB[2]=Math.max(BB[2],lon); BB[3]=Math.max(BB[3],lat);
+}
+const KX = Math.cos((BB[1]+BB[3])/2*Math.PI/180);
+const PROJ = {
+  toXY(lon,lat){ return [(lon-BB[0])*KX, (BB[3]-lat)]; },
+  span(){ return [(BB[2]-BB[0])*KX, BB[3]-BB[1]]; }
+};
+
+/* ---------- карта ---------- */
+const cv = $("#map"), ctx = cv.getContext("2d");
+let VIEW = {ox:0, oy:0, k:1}, img = null;
+if (DATA.rgb) { img = new Image(); img.onload = draw; img.src = DATA.rgb; }
+
+function fit(){
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  const w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  const sp = PROJ.span();
+  const pad = 0.08;
+  const k = Math.min(w*(1-2*pad)/sp[0], h*(1-2*pad)/sp[1]);
+  VIEW.k = k;
+  VIEW.ox = (w - sp[0]*k)/2;
+  VIEW.oy = (h - sp[1]*k)/2;
+  VIEW.dpr = dpr; VIEW.w = w; VIEW.h = h;
+  draw();
+}
+function px(lon,lat){
+  const [x,y] = PROJ.toXY(lon,lat);
+  return [VIEW.ox + x*VIEW.k, VIEW.oy + y*VIEW.k];
+}
+function valueOf(c, i){
+  const L = DATA.modes.limits.find(l => Math.round(l.limit*100) === S.limit);
+  if (!L) return null;
+  const r = L.rows[i];
+  if (S.mode === "uni")  return r.w_uni / c.area;
+  if (S.mode === "opt")  return r.w_opt / c.area;
+  return (r.w_opt - r.w_uni) / c.area;
+}
+function scaleFor(){
+  const L = DATA.modes.limits.find(l => Math.round(l.limit*100) === S.limit);
+  if (!L) return null;
+  const vals = DATA.checks.map((c,i) => valueOf(c,i)).filter(v => v!=null && isFinite(v));
+  if (!vals.length) return null;
+  if (S.mode === "diff"){
+    const m = Math.max(...vals.map(Math.abs)) || 1;
+    return {lo:-m, hi:m};
+  }
+  return {lo:Math.min(...vals), hi:Math.max(...vals)};
+}
+function colorFor(v, sc){
+  if (v==null || !isFinite(v)) return "rgba(27,31,36,.18)";
+  if (S.mode === "diff"){
+    const t = Math.max(-1, Math.min(1, v/(sc.hi||1)));
+    if (Math.abs(t) < 0.06) return "rgba(27,31,36,.16)";           // без изменений
+    return t > 0 ? `rgba(108,122,58,${0.30+0.65*Math.abs(t)})`     // добавлено
+                 : `rgba(140,29,12,${0.35+0.60*Math.abs(t)})`;     // урезано
+  }
+  const t = sc.hi>sc.lo ? (v-sc.lo)/(sc.hi-sc.lo) : 0.5;
+  return `rgba(46,110,126,${0.22+0.70*t})`;
+}
+function draw(){
+  if (!VIEW.w) return;
+  ctx.save();
+  ctx.setTransform(VIEW.dpr,0,0,VIEW.dpr,0,0);
+  ctx.clearRect(0,0,VIEW.w,VIEW.h);
+  if (img && img.complete && DATA.aux && DATA.aux.bounds){
+    const b = DATA.aux.bounds;   // [[lat0,lon0],[lat1,lon1]]
+    const [x0,y0] = px(b[0][1], b[1][0]);
+    const [x1,y1] = px(b[1][1], b[0][0]);
+    ctx.globalAlpha = 0.55;
+    ctx.drawImage(img, x0, y0, Math.abs(x1-x0), Math.abs(y1-y0));
+    ctx.globalAlpha = 1;
+  }
+  const sc = scaleFor();
+  DATA.checks.forEach((c,i) => {
+    const v = valueOf(c,i);
+    ctx.beginPath();
+    c.poly.forEach(([lon,lat],j) => { const [x,y]=px(lon,lat); j?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+    ctx.closePath();
+    ctx.fillStyle = colorFor(v, sc);
+    ctx.fill();
+    const out = DATA.modes.limits.find(l=>Math.round(l.limit*100)===S.limit)?.rows[i]?.out;
+    ctx.lineWidth = (S.sel===c.id) ? 3 : (out ? 2 : 1);
+    ctx.strokeStyle = out ? "#B4341F" : "#1B1F24";
+    ctx.stroke();
+    if (c.suspect_merge){
+      ctx.save(); ctx.clip();
+      ctx.strokeStyle = "rgba(27,31,36,.35)"; ctx.lineWidth = 1;
+      for (let x=-VIEW.h; x<VIEW.w+VIEW.h; x+=6){
+        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x+VIEW.h,VIEW.h); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if (ctx.lineWidth===3 || c.area>18){
+      let sx=0, sy=0; c.poly.forEach(([lon,lat])=>{const [x,y]=px(lon,lat); sx+=x; sy+=y;});
+      const n=c.poly.length, fs = Math.max(10, Math.min(15, Math.sqrt(c.area)*2.2));
+      ctx.fillStyle="#1B1F24"; ctx.font=`600 ${fs}px ui-monospace,monospace`;
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(String(c.id), sx/n, sy/n);
+    }
+  });
+  ctx.restore();
+  $("#scale").textContent = scaleText();
+}
+function scaleText(){
+  const sp = PROJ.span();
+  const mPerPx = (sp[0]*111320) / (sp[0]*VIEW.k || 1);
+  const target = 120;                       // подбираем ступень под 120 px
+  let best = [50,100,200,500,1000].reduce((a,b)=>
+    Math.abs(b/mPerPx-target) < Math.abs(a/mPerPx-target) ? b : a, 100);
+  return best>=1000 ? (best/1000)+" км" : best+" м";
+}
+
+/* ---------- счётчики ---------- */
+function counters(){
+  const L = DATA.modes.limits.find(l => Math.round(l.limit*100) === S.limit);
+  if (!L) return;
+  const cells = [
+    {k:"Объём воды на массив", v:fmt(L.water_opt_m3/1e6,2)+" млн м³",
+     s:"одинаков во всех режимах · водный баланс"},
+    {k:"Сбор риса, поровну", v:fmt(L.yield_uni_t,0)+" т",
+     s:"уравнительный срез · расчёт модели"},
+    {k:"Сбор риса, по фазам", v:fmt(L.yield_opt_t,0)+" т",
+     s:"распределение модели · расчёт модели"},
+  ];
+  $("#counters").innerHTML = cells.map(c =>
+    `<div class="cell"><div class="v">${c.v}</div><div class="k">${c.k}</div>
+     <div class="s">${c.s}</div></div>`).join("");
+}
+
+/* ---------- легенда ---------- */
+function legend(){
+  const rows = DATA.legend || [];
+  $("#legrows").innerHTML = rows.map(r =>
+    `<div class="row"><span class="sw ${r.cls||""}" style="${r.style||""}"></span>${r.label}</div>`
+  ).join("");
+  $("#legnote").textContent = S.mode==="diff"
+    ? "разница м³/га: зелёный — добавлено, красный — урезано, серый — без изменений"
+    : "м³/га на чек за сезон";
+}
+
+/* ---------- ведомость ---------- */
+function rowsSorted(){
+  const L = DATA.modes.limits.find(l => Math.round(l.limit*100) === S.limit);
+  const rows = DATA.checks.map((c,i) => {
+    const r = L.rows[i];
+    const perHa = S.mode==="uni" ? r.w_uni/c.area : r.w_opt/c.area;
+    return {id:c.id, area:c.area, elev:c.elev, dz:c.dz, kpd:c.kpd, perHa,
+            deficit: S.mode==="uni"? r.d_uni : r.d_opt, out:!!r.out,
+            flags:[c.suspect_merge?"вероятно склейка":"", r.out?"выведен":"",
+                   c.bank_iou<0.4?"граница не по валу":""].filter(Boolean).join(" · ")};
+  });
+  const key = S.sort;
+  rows.sort((a,b) => (S.desc? -1:1) * (key==="flags" ? String(a.flags).localeCompare(String(b.flags))
+                                                     : (a[key]-b[key])));
+  return rows;
+}
+function vedomost(){
+  const rows = rowsSorted();
+  const cols = [["id","№"],["area","га"],["elev","отм."],["perHa","м³/га"],
+                ["deficit","недолив %"],["flags","флаг"]];
+  const th = cols.map(([k,t]) =>
+    `<th data-k="${k}" class="${S.sort===k?"on":""}">${t}${S.sort===k?(S.desc?" ↓":" ↑"):""}</th>`).join("");
+  const tb = rows.map(r =>
+    `<tr data-id="${r.id}" class="${r.out?"out":""} ${S.sel===r.id?"sel":""}">
+      <td>${r.id}</td><td>${fmt(r.area,1)}</td><td>${fmt(r.elev,2)}</td>
+      <td>${fmt(r.perHa)}</td><td>${fmt(r.deficit,1)}</td>
+      <td style="text-align:left" class="${r.flags?"flag":""}">${r.flags||"·"}</td></tr>`).join("");
+  const tot = rows.reduce((a,r)=>({n:a.n+1, ha:a.ha+r.area, w:a.w+r.perHa*r.area}),{n:0,ha:0,w:0});
+  $("#sheet_title").textContent = "Ведомость чеков";
+  $("#sheet_meta").textContent =
+    `${DATA.content.massif.district}, ${DATA.content.massif.near} · снимок ${DATA.content.image_date.value}`;
+  $("#sortbar").style.display = "flex";
+  $("#sortbar").innerHTML = `<span>сортировка:</span>` +
+    cols.slice(0,5).map(([k,t]) => `<button data-k="${k}" class="${S.sort===k?"on":""}">${t}</button>`).join("")
+    + `<span class="spacer"></span><button id="rev">${S.desc?"убыв.":"возр."}</button>`;
+  $("#panel").scrollTop = 0;
+  $("#panel").innerHTML = `<table><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table>`;
+  $("#total_txt").innerHTML =
+    `Итого ${tot.n} · ${fmt(tot.ha,1)} га · ${fmt(tot.w/1e6,2)} млн м³`;
+  $("#total").style.display = "flex";
+  $("#panel").querySelectorAll("tbody tr").forEach(tr =>
+    tr.onclick = () => { S.sel = +tr.dataset.id; vedomost(); draw(); });
+  $("#sortbar").querySelectorAll("button[data-k]").forEach(b => b.onclick = () => {
+    if (S.sort === b.dataset.k) S.desc = !S.desc; else { S.sort = b.dataset.k; S.desc = false; }
+    vedomost();
+  });
+  const rev = $("#rev"); if (rev) rev.onclick = () => { S.desc = !S.desc; vedomost(); };
+}
+
+/* ---------- Метод ---------- */
+function method(){
+  $("#sheet_title").textContent = "Метод";
+  $("#sheet_meta").textContent = "как получено";
+  $("#sortbar").style.display = "none";
+  $("#total").style.display = "none";
+  const c = DATA.content;
+  $("#panel").innerHTML = `<div class="doc">
+    <h3>Откуда массив</h3>
+    <p>в заявке — предварительная оценка массива; в продукте массив переоцифрован по
+    признаку риса, пруды и лиманы исключены, границы уточнены</p>
+    <div class="kv">
+      <span>чеков</span><span>${c.massif.checks}</span>
+      <span>площадь, га</span><span>${fmt(c.massif.area_ha,1)}</span>
+      <span>контрольные даты</span><span>${c.control_dates.value}</span>
+      <span>подтверждено рисом</span><span>${DATA.proof_ok} из ${DATA.proof_all}</span>
+      <span>источник</span><span>${c.massif.source}</span>
+    </div>
+    <h3>Что делает система</h3>
+    <p>вывод чеков из севооборота делает хозяйство; модель распределяет воду
+    между оставшимися. ${c.checks_fallowed.value} при лимите ${c.limit_base.value} %.</p>
+    <h3>Отметки</h3>
+    <p>${c.elev.source}</p>
+    <p>${c.montecarlo.value}</p>
+    <p class="src">${DATA.elev_note}</p>
+    <h3>Вода</h3>
+    <div class="kv">
+      <span>ET₀ за сезон, мм</span><span>${fmt(c.et0.value,1)}</span>
+      <span>фильтрация, мм</span><span>${fmt(c.percolation.value,1)}</span>
+      <span>разовое затопление, мм</span><span>${fmt(c.flooding.value)}</span>
+      <span>норма, м³/га</span><span>${c.norm.min}…${c.norm.max}</span>
+      <span>источник</span><span>FAO-56 · ERA5</span>
+    </div>
+    <h3>Чего в системе нет</h3>
+    <ul><li>прогнозов погоды и урожая;</li>
+        <li>полевых измерений расхода и нивелировки;</li>
+        <li>экстраполяции на край и на другие массивы.</li></ul>
+    <h3>Что показала проверка</h3>
+    <p>Плацебо-тест: выигрыш модели ${DATA.placebo.real} % лежит внутри распределения
+    случайных перестановок свойств чеков (медиана ${DATA.placebo.median} %,
+    95-й процентиль ${DATA.placebo.p95} %). Значит, выигрыш не от подбора по чекам:
+    четыре пятых его — недоиспользованный лимит, который хозяйство не выбирает само.</p>
+    <p class="src">${c.disclaimer.value}</p>
+  </div>`;
+}
+
+/* ---------- Экономика ---------- */
+function econ(){
+  $("#sheet_title").textContent = "Экономика";
+  $("#sheet_meta").textContent = "база сравнения — практика вывода чеков из севооборота";
+  $("#sortbar").style.display = "none";
+  $("#total").style.display = "none";
+  const c = DATA.content;
+  const rows = DATA.grid_curve.map(r =>
+    `<tr><td>${r.limit} %</td><td>${r.deficit} %</td><td style="text-align:right">${fmt(r.gain,2)}</td>
+     <td style="text-align:right">${fmt(r.per_ha)}</td></tr>`).join("");
+  $("#panel").innerHTML = `<div class="doc">
+    <h3>Что даёт система при лимите ${Math.abs(c.limit_base.value)} %</h3>
+    <div class="kv">
+      <span>сбор при уравнительном срезе, т</span><span>${fmt(DATA.modes_now.yield_uni_t,0)}</span>
+      <span>сбор при распределении модели, т</span><span>${fmt(DATA.modes_now.yield_opt_t,0)}</span>
+      <span>подача, млн м³</span><span>${fmt(DATA.modes_now.water_opt_m3/1e6,2)}</span>
+      <span>недоиспользовано лимита, тыс. м³</span><span>${fmt(DATA.underuse_m3/1000,0)}</span>
+      <span>источник</span><span>расчёт модели</span>
+    </div>
+    <p class="src">${DATA.water_line}</p>
+    <h3>Эффект по лимитам</h3>
+    <table><thead><tr><th>лимит</th><th>дефицит</th><th>%</th><th>₽/га</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    <p class="src">₽/га — от фактического урожая на каждом уровне лимита
+    (${DATA.content.effect_rub_ha.source}). Ниже 70 % модель не проверялась.</p>
+  </div>`;
+}
+
+/* ---------- переключение ---------- */
+function setMode(m){
+  S.mode = m;
+  document.querySelectorAll("#switch button").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
+  legend(); draw(); if (S.tab==="massif") vedomost();
+}
+function setLimit(v){
+  S.limit = Math.max(70, Math.min(100, +v));
+  $("#limval").textContent = "−" + (100 - S.limit) + " %";
+  $("#bound").style.display = S.limit <= 70 ? "block" : "none";
+  counters(); draw(); if (S.tab==="massif") vedomost(); if (S.tab==="econ") econ();
+}
+function setTab(t){
+  S.tab = t;
+  document.querySelectorAll("#nav button").forEach(b =>
+    b.setAttribute("aria-current", String(b.dataset.tab === t)));
+  if (t==="massif") vedomost(); else if (t==="method") method(); else econ();
+}
+
+/* ---------- сборка ---------- */
+function init(){
+  const c = DATA.content;
+  $("#stamp .mark").insertAdjacentHTML("beforeend",
+    `<small>${c.disclaimer.value}</small>`);
+  $("#headline").innerHTML = DATA.headline;
+  $("#headsrc").textContent = DATA.headsrc;
+  $("#attr").textContent = DATA.attr;
+  $("#waterline").textContent = DATA.water_line;
+  legend(); counters();
+  document.querySelectorAll("#nav button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
+  document.querySelectorAll("#switch button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  $("#limit").oninput = e => setLimit(e.target.value);
+  $("#blink").onclick = () => {
+    if (S.blink){ clearInterval(S.blink); S.blink = null; return; }
+    let a = true;
+    S.blink = setInterval(() => { setMode(a ? "uni" : "opt"); a = !a; }, 700);
+  };
+  $("#pdf").onclick = () => {
+    const d = new Date().toLocaleDateString("ru-RU");
+    $("#ph_mass").textContent =
+      `${c.massif.district}, ${c.massif.near} · ${c.massif.checks} чека, ${fmt(c.massif.area_ha,1)} га`;
+    $("#ph_limit").textContent =
+      `${S.limit} % (дефицит ${100 - S.limit} %), режим «${S.mode==="uni"?"поровну":(S.mode==="opt"?"по фазам":"разница")}»`;
+    $("#ph_img").textContent = `Sentinel-2 L2A, ${c.image_date.value}`;
+    $("#ph_date").textContent = `${d} · ${DATA.content.disclaimer.value}`;
+    $("#pf_note").textContent =
+      `${DATA.content.disclaimer.value}. Отметки чеков — ${c.elev.source_short || c.elev.source}.`;
+    window.print();
+  };
+  $("#sheethead").onclick = () => { if (window.innerWidth <= 820) $("#sheet").classList.toggle("open"); };
+  const q = new URLSearchParams(location.search);
+  const lim = q.get("limit");
+  $("#limit").value = lim ? Math.max(70, Math.min(100, +lim)) : 70;
+  setLimit($("#limit").value);
+  setTab("massif");
+  fit();
+  window.addEventListener("resize", () => { fit(); });
+  if (window.innerWidth <= 820) $("#sheet").classList.remove("open");
+}
+init();
+</script>
+</body>
+</html>
