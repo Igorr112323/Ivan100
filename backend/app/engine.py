@@ -52,6 +52,9 @@ KPD_BASE, KPD_SLOPE = 0.80, 0.012
 TARGET_NORM_M3_HA = 16_009
 RAIN_EFF = 0.70
 SEG1, SLOPE1, SLOPE2 = 0.30, 0.70, 1.60
+# Доля фильтрации, которая уходит вместе со слоем воды: 0 — фильтрация константа
+# (нынешняя модель), 1 — вся фильтрация пропорциональна фактическому слою.
+PERC_KAPPA = 0.0
 
 # Ограничение режима: чек в севообороте недополучает не более 10 % своей нормы воды.
 # Иначе оптимизатор «экономит», собирая весь дефицит на немногих чеках — на бумаге выгода
@@ -223,15 +226,18 @@ def gross_decade(etm_p: float, perc_p: float, delta: float, kpd: float) -> float
     обязательная статья баланса, её нельзя «недолить», не осушив чек: слой воды держится
     валиками, и при сокращении подачи в первую очередь падает испарение, а не инфильтрация.
     """
-    return ((1.0 - delta) * etm_p + perc_p) / kpd
+    return ((1.0 - delta) * etm_p + perc_p * (1.0 - PERC_KAPPA * delta)) / kpd
 
 
 def et_deficit_of(gross_p: float, etm_p: float, perc_p: float, kpd: float) -> float:
     """Обратная задача: какой дефицит испарения соответствует данной подаче."""
     if etm_p <= 1e-9:
         return 0.0
-    available = gross_p * kpd - perc_p
-    return max(0.0, min(1.0, 1.0 - available / etm_p))
+    # gross*kpd = (1-d)*etm + perc*(1-kappa*d)  ->  d = (etm + perc - gross*kpd)/(etm + kappa*perc)
+    den = etm_p + PERC_KAPPA * perc_p
+    if den <= 1e-9:
+        return 0.0
+    return max(0.0, min(1.0, (etm_p + perc_p - gross_p * kpd) / den))
 
 
 def initial_mm(kpd: float) -> float:
@@ -581,15 +587,23 @@ def _histogram(values: list, bins: int) -> list:
     return out
 
 
-def economics(gain_pct: float, area_ha: float, price: float = PRICE_RUB_KG) -> dict:
+def economics(gain_pct: float, area_ha: float, price: float = PRICE_RUB_KG,
+              base_yield_t_ha: float | None = None) -> dict:
     """Эффект в рублях на гектар массива и на весь массив. Экстраполяции на край нет:
-    модельный результат получен на одном массиве одного сезона."""
-    per_ha_kg = YIELD_T_HA * 1000.0 * gain_pct / 100.0  # т/га -> кг/га
+    модельный результат получен на одном массиве одного сезона.
+
+    Процент выигрыша считается к урожаю базы, поэтому и в деньгах он берётся от
+    урожая базы, а не от потенциального: при лимите 85 % практика собирает
+    6,23 т/га, а не 7,31 т/га. Иначе выигрыш завышается на 17 %.
+    """
+    base = YIELD_T_HA if base_yield_t_ha is None else base_yield_t_ha
+    per_ha_kg = base * 1000.0 * gain_pct / 100.0  # т/га -> кг/га
     per_ha_rub = per_ha_kg * price
     return {
         "gain_pct": gain_pct,
         "per_ha_kg": round(per_ha_kg, 2),
         "per_ha_rub": round(per_ha_rub, 0),
+        "base_yield_t_ha": round(base, 3),
         "array_rub": round(per_ha_rub * area_ha, 0),
         "area_ha": round(area_ha, 1),
         "price": price,

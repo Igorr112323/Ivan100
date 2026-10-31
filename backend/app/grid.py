@@ -97,7 +97,8 @@ def build(year: int | None = None, ky: float = KY) -> dict:
             },
             "cut_pct": [round(v, 1) for v in _cut_series(checks, capped, etm, perc)],
             "yield_frac": [round(pc["yield_frac"], 4) for pc in capped["per_check"]],
-            "economics": engine.economics(gain_cap, area_ha),
+            "economics": engine.economics(gain_cap, area_ha,
+                                          base_yield_t_ha=fallow["yield_tons"] / area_ha),
         }
         rows.append(row)
         print(f"  лимит {limit:.0%}: вывод чеков {fallow['yield_tons']:.0f} т → оптимум "
