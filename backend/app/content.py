@@ -184,7 +184,10 @@ def build() -> dict:
         "water_saving": {
             "value": inverse.get("saving_m3"), "unit": "млн м³",
             "per_ha": inverse.get("saving_per_ha"), "pct": inverse.get("saving_pct"),
-            "note": "при том же урожае, что у практики вывода чеков",
+            "practice_m3": num(w_practice / 1e6, 2),
+            "screen": "экономии воды нет; подача та же, сбор выше",
+            "note": ("разница к практике при равном урожае меньше точности самого "
+                     "расчёта водоподачи; на экран идёт фраза, а не число"),
             "source": MODEL,
         },
         "checks_fallowed": {
@@ -229,8 +232,11 @@ def build() -> dict:
         "montecarlo": {
             "sigmas": mc_out, "base": mc.get("base", ""),
             "zero_sigma": num(zero_sigma, 2) if zero_sigma else None,
-            "value": (f"при точности отметок хуже {num(zero_sigma, 1)} м эффект исчезает"
-                      if zero_sigma else "порог точности отметок не найден"),
+            "value": (f"эффект держится при точности отметок лучше {num(zero_sigma, 1)} м; "
+                      f"текущий источник (публичные Terrain Tiles z=13) её не обеспечивает — "
+                      f"задача полевого этапа 2027" if zero_sigma else "порог точности отметок не найден"),
+            "short": (f"при точности отметок хуже {num(zero_sigma, 1)} м эффект исчезает"
+                      if zero_sigma else ""),
             "source": MODEL,
         },
         "disclaimer": {

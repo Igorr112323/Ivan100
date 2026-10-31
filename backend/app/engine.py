@@ -20,6 +20,8 @@
 """
 from __future__ import annotations
 
+import os
+
 import csv
 import json
 import math
@@ -157,7 +159,9 @@ def phase_of_dec(dec_index: int, season_len: int = SEASON_DAYS) -> int:
 
 
 def load_checks():
-    path = DATA / "checks.geojson"
+    # слот массива: контрольные массивы лежат в data/checks_<слот>.geojson,
+    # основной — в data/checks.geojson и остаётся путём по умолчанию
+    path = DATA / os.environ.get("AKVACHEK_CHECKS", "checks.geojson")
     if not path.exists():
         raise FileNotFoundError("нет data/checks.geojson — сначала выполните пайплайн данных")
     gj = json.loads(path.read_text(encoding="utf-8"))
