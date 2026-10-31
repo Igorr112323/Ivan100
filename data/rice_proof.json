@@ -938,5 +938,107 @@
    "bright_pct": 0.0,
    "ndvi_july_no_bright": 0.767
   }
+ ],
+ "visual": [
+  {
+   "id": 15,
+   "image": "visual_15.png",
+   "open_water_pct": 79.7,
+   "wet_june_pct": 87.5,
+   "moist_pct": 87.6,
+   "ndvi_july": 0.829,
+   "ndwi_sept": -0.377,
+   "rice": true
+  },
+  {
+   "id": 11,
+   "image": "visual_11.png",
+   "open_water_pct": 68.8,
+   "wet_june_pct": 87.4,
+   "moist_pct": 81.6,
+   "ndvi_july": 0.768,
+   "ndwi_sept": -0.367,
+   "rice": true
+  },
+  {
+   "id": 40,
+   "image": "visual_40.png",
+   "open_water_pct": 64.7,
+   "wet_june_pct": 91.9,
+   "moist_pct": 90.9,
+   "ndvi_july": 0.808,
+   "ndwi_sept": -0.353,
+   "rice": true
+  },
+  {
+   "id": 39,
+   "image": "visual_39.png",
+   "open_water_pct": 64.0,
+   "wet_june_pct": 92.5,
+   "moist_pct": 90.1,
+   "ndvi_july": 0.782,
+   "ndwi_sept": -0.346,
+   "rice": true
+  },
+  {
+   "id": 30,
+   "image": "visual_30.png",
+   "open_water_pct": 57.8,
+   "wet_june_pct": 83.4,
+   "moist_pct": 81.4,
+   "ndvi_july": 0.772,
+   "ndwi_sept": -0.367,
+   "rice": true
+  },
+  {
+   "id": 1,
+   "image": "visual_1.png",
+   "open_water_pct": 57.5,
+   "wet_june_pct": 82.9,
+   "moist_pct": 79.8,
+   "ndvi_july": 0.817,
+   "ndwi_sept": -0.378,
+   "rice": true
+  },
+  {
+   "id": 34,
+   "image": "visual_34.png",
+   "open_water_pct": 55.3,
+   "wet_june_pct": 75.2,
+   "moist_pct": 70.8,
+   "ndvi_july": 0.748,
+   "ndwi_sept": -0.382,
+   "rice": true
+  },
+  {
+   "id": 36,
+   "image": "visual_36.png",
+   "open_water_pct": 54.8,
+   "wet_june_pct": 78.3,
+   "moist_pct": 81.1,
+   "ndvi_july": 0.707,
+   "ndwi_sept": -0.381,
+   "rice": true
+  },
+  {
+   "id": 32,
+   "image": "visual_32.png",
+   "open_water_pct": 54.3,
+   "wet_june_pct": 73.6,
+   "moist_pct": 74.9,
+   "ndvi_july": 0.716,
+   "ndwi_sept": -0.377,
+   "rice": true
+  },
+  {
+   "id": 50,
+   "image": "visual_50.png",
+   "open_water_pct": 53.5,
+   "wet_june_pct": 87.3,
+   "moist_pct": 84.3,
+   "ndvi_july": 0.779,
+   "ndwi_sept": -0.366,
+   "rice": true
+  }
  ]
 }
