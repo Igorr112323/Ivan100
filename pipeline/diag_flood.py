@@ -87,6 +87,26 @@ def main() -> None:
         log(f"  {nm.upper()}: 6 июн {np.nanmean(x):+.3f} -> 11 июн {np.nanmean(y):+.3f}")
 
     log("")
+    log("=== чем станет затопленный 6 июня пиксель к пику вегетации ===")
+    peak = load_raster(SENTINEL / "ndvi_2025-07-10.tif")
+    ok_p = np.isfinite(peak)
+    groups = {
+        "затоплен 6 и 11 июня": (wa["LSWI >= NDVI - 0.05"] & wb["LSWI >= NDVI - 0.05"]) & ok_p,
+        "затоплен 6 июня, 11-го уже нет": (wa["LSWI >= NDVI - 0.05"]
+                                           & ~wb["LSWI >= NDVI - 0.05"]) & ok_p,
+        "не затоплен ни разу": (~wa["LSWI >= NDVI - 0.05"]
+                                & ~wb["LSWI >= NDVI - 0.05"]) & ok_p,
+    }
+    for name, sel in groups.items():
+        if sel.sum() < 50:
+            log(f"  {name}: пикселей {int(sel.sum())}, мало")
+            continue
+        log(f"  {name}: {int(sel.sum())} пикселей ({sel.mean() * 100:.1f} % полигона) | "
+            f"NDVI 6 июн {np.nanmean(a['ndvi'][sel]):.3f} | 11 июн {np.nanmean(b['ndvi'][sel]):.3f} | "
+            f"10 июл {np.nanmean(peak[sel]):.3f} | LSWI 6 июн {np.nanmean(a['lswi'][sel]):.3f} | "
+            f"11 июн {np.nanmean(b['lswi'][sel]):.3f}")
+
+    log("")
     log("=== карты затопления (север сверху, # — вода, . — сухо, ~ — нет данных) ===")
     for key in ("NDWI > 0", "LSWI >= NDVI - 0.05", "LSWI >= 0.30"):
         for a_ in (wa, wb):

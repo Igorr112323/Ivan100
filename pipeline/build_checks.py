@@ -44,6 +44,13 @@ DRY_FRAC_MIN = 0.50              # доля пикселей чека с NDWI <=
 SUMMER_FROM, SUMMER_TO = "2025-06-01", "2025-08-25"
 FLOOD_GREEN_MIN_DATES = 2        # минимум дат затопления
 FLOOD_FRAC_MIN = 0.50            # и такая доля площади чека
+# Вода видна из космоса только пока полог не сомкнулся. За 5 суток (6 -> 11 июня)
+# NDVI на затопленных пикселях вырос 0,17 -> 0,33, а LSWI упал 0,49 -> 0,25:
+# признак «LSWI >= NDVI - 0,05» перестаёт выполняться у половины чека, хотя вода
+# на нём стоит. Поэтому два порога: сильный — «вода под редким пологом» хотя бы
+# на одной дате, слабый — «мокро» на всех датах. Вместе они держат и дождь, и рост.
+FLOOD_WEAK_LSWI = 0.20
+FLOOD_WEAK_FRAC_MIN = 0.50
 NDVI_GREEN_MIN = 0.25            # культура видна, полог ещё не сомкнут
 LSWI_MARGIN = 0.05               # допуск на шум индекса
 # Признак считаем по контуру, а не по пикселю: на 10 м внутри одного чека попадают
@@ -298,6 +305,7 @@ def main() -> None:
     # внутри чека попадают и вал, и вода, и просвет между всходами, поэтому
     # поштучный пиксель шумит, а окно даёт ровно ту величину, что в критерии.
     flood_frac_img: dict[str, np.ndarray] = {}
+    flood_weak_img: dict[str, np.ndarray] = {}
     flood_seen_img: dict[str, np.ndarray] = {}
     flooded_any = np.zeros((height, width), dtype=bool)
     for d in summer_dates:
@@ -305,12 +313,16 @@ def main() -> None:
         ndwi_d = load_raster(SENTINEL / f"ndwi_{d}.tif")
         lswi_d = load_raster(SENTINEL / f"lswi_{d}.tif")
         valid_d = load_raster(SENTINEL / f"valid_{d}.tif").astype(bool)
-        wet = ((ndwi_d > 0.0) | (lswi_d >= ndvi_d - LSWI_MARGIN)) & valid_d & np.isfinite(ndwi_d)
+        okd = valid_d & np.isfinite(ndwi_d) & np.isfinite(ndvi_d) & np.isfinite(lswi_d)
+        wet = ((ndwi_d > 0.0) | (lswi_d >= ndvi_d - LSWI_MARGIN)) & okd
+        weak = (lswi_d >= FLOOD_WEAK_LSWI) & okd
         # Считаем долю по наблюдённым пикселям: иначе облако над чеком читается
         # как «воды нет» и чек выбрасывается ни за что.
-        num = ndi.uniform_filter(wet.astype("float32"), size=FLOOD_SMOOTH_PX, mode="nearest")
-        den = ndi.uniform_filter(valid_d.astype("float32"), size=FLOOD_SMOOTH_PX, mode="nearest")
-        flood_frac_img[d] = num / np.maximum(den, 1e-6)
+        den = ndi.uniform_filter(okd.astype("float32"), size=FLOOD_SMOOTH_PX, mode="nearest")
+        flood_frac_img[d] = (ndi.uniform_filter(wet.astype("float32"), size=FLOOD_SMOOTH_PX,
+                                                mode="nearest") / np.maximum(den, 1e-6))
+        flood_weak_img[d] = (ndi.uniform_filter(weak.astype("float32"), size=FLOOD_SMOOTH_PX,
+                                                mode="nearest") / np.maximum(den, 1e-6))
         flood_seen_img[d] = den  # uniform_filter возвращает среднее, то есть уже долю
         flooded_any |= wet
         log(f"  {d}: затопление {wet.mean() * 100:5.2f} % полигона | NDWI > 0 у "
@@ -413,11 +425,16 @@ def main() -> None:
                    f"{', '.join(f'{d} {v:.2f}' for d, v in seen.items())}")
             continue
         fracs = {d: float(flood_frac_img[d][geom_mask].mean()) for d in summer_dates}
-        flood_frac = min(fracs.values())
+        weaks = {d: float(flood_weak_img[d][geom_mask].mean()) for d in summer_dates}
+        flood_frac = max(fracs.values())
         stats["flood"].append(flood_frac)
         if flood_frac < FLOOD_FRAC_MIN:
             reject(f"затоплено менее {FLOOD_FRAC_MIN:.0%} площади: "
                    f"{', '.join(f'{d} {v:.2f}' for d, v in fracs.items())}")
+            continue
+        if min(weaks.values()) < FLOOD_WEAK_FRAC_MIN:
+            reject(f"мокро менее {FLOOD_WEAK_FRAC_MIN:.0%} площади на всех датах: "
+                   f"{', '.join(f'{d} {v:.2f}' for d, v in weaks.items())}")
             continue
 
         m_dry = geom_mask & valid_dry & np.isfinite(ndwi_dry)
@@ -460,6 +477,7 @@ def main() -> None:
             "peak_ndvi": round(peak_ndvi, 3),
             "flood_frac": round(flood_frac, 3),
             "flood_fracs": {d: round(v, 3) for d, v in fracs.items()},
+            "wet_fracs": {d: round(v, 3) for d, v in weaks.items()},
             "dry_frac": round(dry_frac, 3),
             "canal_m": round(canal_m, 1),
             "solidity": round(solidity, 3),
