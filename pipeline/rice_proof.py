@@ -199,6 +199,15 @@ def main() -> None:
         f"10-й процентиль {np.percentile(mo, 10):.0f} %")
     log(f"  NDVI в июле ({july['date']}): медиана {np.median(nj):.2f}, "
         f"10-й процентиль {np.percentile(nj, 10):.2f}, минимум {nj.min():.2f}")
+    br = np.array([r.get("bright_pct") or 0.0 for r in rows])
+    dn = np.array([(r.get("ndvi_july") or 0) - (r.get("ndvi_july_no_bright") or 0) for r in rows])
+    worst = int(np.argmax(br))
+    log(f"  яркое пятно в июне: медиана {np.median(br):.1f} %, "
+        f"максимум {br.max():.1f} % (чек {rows[worst]['id']}); "
+        f"NDVI июля изменился бы на {dn[worst]:+.3f}, "
+        f"по всему массиву сдвиг не более {np.abs(dn).max():.3f}")
+    log(f"  чеков с пятном больше 2 % площади: {int((br >= 2.0).sum())}")
+
     buckets = [(0, 10), (10, 25), (25, 50), (50, 75), (75, 101)]
     log("  корзины по доле воды в июне:")
     for lo, hi in buckets:

@@ -56,8 +56,43 @@ def build() -> dict:
     grid = json.loads((DATA / "optimization" / "grid.json").read_text(encoding="utf-8"))
     mc_path = DATA / "optimization" / "montecarlo.json"
     mc = json.loads(mc_path.read_text(encoding="utf-8")) if mc_path.exists() else {}
+    sweep_path = DATA / "optimization" / "montecarlo_sweep.json"
+    if sweep_path.exists():  # в прогоне-свитке вся кривая, а не две крайние точки
+        mc = json.loads(sweep_path.read_text(encoding="utf-8"))
 
     row = next(r for r in grid["rows"] if abs(r["limit"] - BASE_LIMIT) < 1e-9)
+
+    # Обратная задача: сколько воды нужно модели, чтобы собрать тот же урожай,
+    # что даёт практика вывода чеков. Ищем на сетке лимитов предел, при котором
+    # урожай модели сравнивается с урожаем практики при базовом лимите.
+    area_ha = sum(c.area_ha for c in checks)
+    y_practice = row["yield_tons"]["fallowing"]
+    w_practice = row["water_m3"]["fallowing"]
+    inverse = {}
+    desc = sorted(grid["rows"], key=lambda r: -r["limit"])
+    for a, b in zip(desc, desc[1:]):
+        ya, yb = a["yield_tons"]["capped"], b["yield_tons"]["capped"]
+        if ya == yb or (ya - y_practice) * (yb - y_practice) > 0:
+            continue
+        frac = (ya - y_practice) / (ya - yb)
+        inv_limit = a["limit"] + frac * (b["limit"] - a["limit"])
+        inv_water = a["water_m3"]["capped"] + frac * (b["water_m3"]["capped"] - a["water_m3"]["capped"])
+        inverse = {
+            "limit_pct": num(inv_limit * 100, 1),
+            "water_m3": num(inv_water / 1e6, 2),
+            "water_per_ha": num(inv_water / area_ha, 0),
+            "yield_tons": num(y_practice, 1),
+            "saving_m3": num((w_practice - inv_water) / 1e6, 2),
+            "saving_per_ha": num((w_practice - inv_water) / area_ha, 0),
+            "saving_pct": num(100.0 * (1.0 - inv_water / w_practice), 1) if w_practice else None,
+            "value": (f"урожай практики {num(y_practice, 1)} т — модель берёт "
+                      f"{num(inv_water / 1e6, 2)} млн м³ при лимите {num(inv_limit * 100, 1)} %"),
+            "source": MODEL,
+            "note": "обратная задача: сколько воды нужно, чтобы повторить урожай практики вывода чеков",
+        }
+        break
+    if not inverse:
+        inverse = {"value": "урожай практики на сетке лимитов не достигнут", "source": MODEL}
     dates = sorted(s["date"] for s in scenes)
     n_dates = len(dates)
     incomplete = sum(1 for c in series["checks"] if len(c["series"]) < n_dates)
@@ -76,6 +111,14 @@ def build() -> dict:
             "mean": num(s["mean"], 2), "p05": num(s["p05"], 2), "p95": num(s["p95"], 2),
             "runs": s["runs"],
         }
+
+    # порог точности отметок: где эффект обнуляется
+    sigmas = sorted(mc.get("sigmas", []), key=lambda s: s["sigma_m"])
+    zero_sigma = None
+    for a, b in zip(sigmas, sigmas[1:]):
+        if a["mean"] > 0 >= b["mean"]:
+            zero_sigma = a["sigma_m"] + (b["sigma_m"] - a["sigma_m"]) * a["mean"] / (a["mean"] - b["mean"])
+            break
 
     content = {
         "_meta": {
@@ -132,10 +175,17 @@ def build() -> dict:
             "value": num((row["water_m3"]["full"] - row["water_m3"]["capped"]) / 1e6, 2), "unit": "млн м³",
             "note": "недоподача к полной потребности — это и есть лимит", "source": BALANCE,
         },
+        "inverse": inverse,
         "water_vs_practice": {
             "value": num((row["water_m3"]["capped"] - row["water_m3"]["fallowing"]) / 1e6, 2), "unit": "млн м³",
             "note": "продукт не экономит воду: он возвращает чеки в севооборот и тратит тот же лимит полнее",
             "source": BALANCE,
+        },
+        "water_saving": {
+            "value": inverse.get("saving_m3"), "unit": "млн м³",
+            "per_ha": inverse.get("saving_per_ha"), "pct": inverse.get("saving_pct"),
+            "note": "при том же урожае, что у практики вывода чеков",
+            "source": MODEL,
         },
         "checks_fallowed": {
             "practice": len(row["fallowed"]["fallowing"]),
@@ -173,10 +223,16 @@ def build() -> dict:
         },
         "elev": {
             "min": num(min(elevs), 2), "mean": num(sum(elevs) / len(elevs), 2), "max": num(max(elevs), 2),
-            "unit": "м", "source": meta.get("dem", "DEM"),
+            "unit": "м", "source": "публичные Terrain Tiles z=13, систематическая ошибка не измерена",
         },
         "season": {"start": engine.SEASON_START, "days": engine.SEASON_DAYS, "source": SCENARIO},
-        "montecarlo": {"sigmas": mc_out, "base": mc.get("base", ""), "source": MODEL},
+        "montecarlo": {
+            "sigmas": mc_out, "base": mc.get("base", ""),
+            "zero_sigma": num(zero_sigma, 2) if zero_sigma else None,
+            "value": (f"при точности отметок хуже {num(zero_sigma, 1)} м эффект исчезает"
+                      if zero_sigma else "порог точности отметок не найден"),
+            "source": MODEL,
+        },
         "disclaimer": {
             "value": "модельный массив, сезон 2025, полевых измерений нет",
             "source": "—",
@@ -214,6 +270,9 @@ def to_md(c: dict) -> str:
         row("Вода: подача при лимите", "water_supply"),
         row("Вода: недоподача к полной потребности", "water_shortage"),
         row("Вода: разница к практике вывода чеков", "water_vs_practice"),
+        row("Обратная задача: вода под урожай практики", "inverse"),
+        row("Экономия воды при равном урожае, млн м³", "water_saving"),
+        row("Порог точности отметок", "montecarlo"),
         row("Число чеков с неполным рядом", "checks_incomplete"),
         f"| Урожай: без лимита / уравнительно / вывод чеков / оптимум | "
         f"{c['yield_base']['full']} / {c['yield_base']['uniform']} / {c['yield_base']['fallowing']} / "
