@@ -1,13 +1,87 @@
 {
  "seed": 20251031,
- "checks": [],
+ "checks": [
+  {
+   "id": 5,
+   "image": "check_5.png",
+   "area_ha": 37.2,
+   "elev_m": -1.04,
+   "rice_frac": 0.891,
+   "dry_frac": 1.0,
+   "canal_m": 0.0,
+   "solidity": 0.921,
+   "rect_fill": 0.775,
+   "neighbors": 6
+  },
+  {
+   "id": 6,
+   "image": "check_6.png",
+   "area_ha": 12.32,
+   "elev_m": 0.01,
+   "rice_frac": 0.977,
+   "dry_frac": 1.0,
+   "canal_m": 0.0,
+   "solidity": 0.967,
+   "rect_fill": 0.926,
+   "neighbors": 3
+  },
+  {
+   "id": 3,
+   "image": "check_3.png",
+   "area_ha": 10.03,
+   "elev_m": -1.39,
+   "rice_frac": 1.0,
+   "dry_frac": 1.0,
+   "canal_m": 0.0,
+   "solidity": 0.857,
+   "rect_fill": 0.641,
+   "neighbors": 5
+  },
+  {
+   "id": 2,
+   "image": "check_2.png",
+   "area_ha": 12.14,
+   "elev_m": -2.42,
+   "rice_frac": 0.965,
+   "dry_frac": 1.0,
+   "canal_m": 0.0,
+   "solidity": 0.917,
+   "rect_fill": 0.8,
+   "neighbors": 3
+  },
+  {
+   "id": 7,
+   "image": "check_7.png",
+   "area_ha": 32.36,
+   "elev_m": -0.92,
+   "rice_frac": 0.89,
+   "dry_frac": 1.0,
+   "canal_m": 0.0,
+   "solidity": 0.949,
+   "rect_fill": 0.637,
+   "neighbors": 4
+  }
+ ],
  "rice_test": {
-  "flood_date": "2025-05-22",
-  "veg_date": "2025-07-28",
-  "dry_date": "2025-09-24",
+  "flood_dates": [
+   "2025-06-06",
+   "2025-06-11"
+  ],
+  "flood_date": "2025-06-06",
+  "veg_date": "2025-07-10",
+  "dry_date": "2025-10-04",
   "veg_ndvi_min": 0.55,
   "rice_frac_min": 0.5,
   "dry_frac_min": 0.5,
+  "flood_green_min_dates": 2,
+  "flood_frac_min": 0.5,
+  "ndvi_green_min": 0.25,
+  "ndvi_rice_min": 0.55,
+  "lswi_margin": 0.05,
+  "summer_dates": [
+   "2025-06-06",
+   "2025-06-11"
+  ],
   "area_ha": [
    10.0,
    60.0

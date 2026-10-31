@@ -1,23 +1,9 @@
-Traceback (most recent call last):
-  File "rasterio/_base.pyx", line 310, in rasterio._base.DatasetBase.__init__
-  File "rasterio/_base.pyx", line 221, in rasterio._base.open_dataset
-  File "rasterio/_err.pyx", line 221, in rasterio._err.exc_wrap_pointer
-rasterio._err.CPLE_OpenFailedError: /home/runner/work/Ivan100/Ivan100/data/sentinel/ndvi_2025-07-28.tif: No such file or directory
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/home/runner/work/Ivan100/Ivan100/pipeline/verify_checks.py", line 182, in <module>
-    main()
-  File "/home/runner/work/Ivan100/Ivan100/pipeline/verify_checks.py", line 79, in main
-    with rasterio.open(SENTINEL / f"ndvi_{test['veg_date']}.tif") as src:
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/rasterio/env.py", line 451, in wrapper
-    return f(*args, **kwds)
-           ^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/rasterio/__init__.py", line 304, in open
-    dataset = DatasetReader(path, driver=driver, sharing=sharing, **kwargs)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "rasterio/_base.pyx", line 312, in rasterio._base.DatasetBase.__init__
-rasterio.errors.RasterioIOError: /home/runner/work/Ivan100/Ivan100/data/sentinel/ndvi_2025-07-28.tif: No such file or directory
-КОД ВЫХОДА: 1
+[00:20:47] на проверку взято 5 чеков из 7 (seed 20251031)
+[00:20:47]   чек 5: check_5.png | 37.2 га | отметка -1.04 м | полог 0.891 | сухо 1.0 | канал 0.0 м | прямоугольник 0.775 | соседей 6
+[00:20:48]   чек 6: check_6.png | 12.32 га | отметка 0.01 м | полог 0.977 | сухо 1.0 | канал 0.0 м | прямоугольник 0.926 | соседей 3
+[00:20:48]   чек 3: check_3.png | 10.03 га | отметка -1.39 м | полог 1.0 | сухо 1.0 | канал 0.0 м | прямоугольник 0.641 | соседей 5
+[00:20:48]   чек 2: check_2.png | 12.14 га | отметка -2.42 м | полог 0.965 | сухо 1.0 | канал 0.0 м | прямоугольник 0.8 | соседей 3
+[00:20:49]   чек 7: check_7.png | 32.36 га | отметка -0.92 м | полог 0.89 | сухо 1.0 | канал 0.0 м | прямоугольник 0.637 | соседей 4
+[00:20:49] записано data/verify/verify.json (1 КБ)
+[00:20:49] отчёт: data/verify/report.md (5 чеков)
+КОД ВЫХОДА: 0
