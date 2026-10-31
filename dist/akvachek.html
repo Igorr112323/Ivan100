@@ -48,11 +48,9 @@ main{flex:1;display:flex;min-height:0}
 #legend .note{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:4px}
 
 /* ---------- мобильные блоки: на широком экране их нет ---------- */
-#mobar,#mobottom,#legmini,#sheet_close,#taphint,#tabs{display:none}
+#mobar,#mobottom,#legmini,#sheet_close,#taphint{display:none}
 #mohandle{display:none;height:14px;align-items:center;justify-content:center;cursor:pointer}
 #mohandle i{display:block;width:44px;height:3px;background:var(--line);opacity:.55}
-#tabs button{background:none;border:0;font:inherit;font-size:12px;color:var(--muted);
-  padding:4px 0;cursor:pointer;text-decoration:underline dotted}
 #taphint{position:absolute;left:50%;transform:translateX(-50%);bottom:40px;z-index:5;
   background:var(--paper);border:1px solid var(--line);border-radius:2px;
   padding:3px 8px;font-family:var(--mono);font-size:12px;color:var(--muted)}
@@ -86,7 +84,6 @@ main{flex:1;display:flex;min-height:0}
 #limitrow input[type=range]{flex:1;accent-color:var(--seal)}
 #limitrow .lv{font-family:var(--mono);font-size:32px;font-weight:600;min-width:96px}
 #limitrow .cap{font-size:12px;color:var(--muted);font-family:var(--mono)}
-#bound{font-size:12px;color:var(--seal);font-family:var(--mono);margin-top:6px;display:none}
 #scale{position:absolute;left:24px;bottom:0;font-family:var(--mono);font-size:12px;
   color:var(--ink);background:var(--paper);padding:1px 4px}
 #attr{position:absolute;right:8px;bottom:4px;font-family:var(--mono);font-size:12px;
@@ -126,6 +123,8 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
 .doc .kv{display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-family:var(--mono);font-size:12px}
 .doc .kv span:nth-child(even){text-align:right}
 .doc .src{color:var(--muted);font-family:var(--mono);font-size:12px}
+.refs{margin-top:12px;border-top:1px solid var(--line);padding-top:2px}
+.refs h3:first-child{margin-top:8px}
 .flag{font-size:12px;color:var(--seal)}
 
 /* ---------- мобильная версия 390×844 ---------- */
@@ -156,7 +155,6 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
   #limitrow{margin-top:0;gap:10px}
   #limitrow .lv{font-size:20px;min-width:62px;text-align:right}
   #limitrow .cap{font-size:12px;line-height:1.1}
-  #bound{display:block;margin-top:4px}
 
   /* карта — всё свободное место */
   main{display:flex;flex-direction:column;flex:1;min-height:0}
@@ -185,10 +183,7 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
   #sheet header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;cursor:default}
   #sheet header h2{font-size:15px;flex:1}
   #sheet header h2::after{content:""}
-  #sheet header .meta{display:none}
-  #tabs{display:flex;order:3;flex:0 0 100%;gap:14px;margin-top:4px;padding-top:4px;
-    border-top:1px solid rgba(27,31,36,.12)}
-  #tabs button[aria-current="true"]{color:var(--ink);font-weight:600;text-decoration:none}
+  #sheet header .meta{display:block;flex:0 0 100%;order:3;font-size:12px;margin-top:2px}
   #sheet_close{display:block;background:none;border:1px solid var(--line);border-radius:2px;
     font:inherit;font-size:13px;line-height:1;padding:5px 9px;cursor:pointer;color:var(--ink)}
   #panel{flex:1;overflow:auto;min-height:0;max-height:none}
@@ -200,7 +195,7 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
 @media print{
   @page{size:A4 portrait;margin:12mm 10mm}
   html,body{height:auto;overflow:visible;background:#fff}
-  #mapwrap,#legend,#modes,#stamp,#nav,#mobar,#mobottom,#legmini,#sheet_close,#taphint,#tabs{display:none!important}
+  #mapwrap,#legend,#modes,#stamp,#nav,#mobar,#mobottom,#legmini,#sheet_close,#taphint{display:none!important}
   #app{display:block;height:auto}
   main{display:block;height:auto}
   #sheet{width:auto;min-width:0;border:0;position:static;transform:none;
@@ -251,7 +246,6 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
   <div id="mobar">
     <div id="morow1"><div id="moswitch"></div><div id="moblink"></div></div>
     <div id="morow2"><div id="molimit"></div></div>
-    <div id="mobound"></div>
   </div>
   <main>
     <section id="mapwrap">
@@ -280,7 +274,6 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
           <input type="range" id="limit" min="70" max="100" step="1" value="70">
           <div class="cap">лимит<br>водоподачи</div>
         </div>
-        <div id="bound">ниже 70 % модель не проверялась</div>
       </div>
       <div id="legmini"></div>
       <div id="taphint">нажми на чек</div>
@@ -294,12 +287,6 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
     <aside id="sheet">
       <header id="sheethead"><h2 id="sheet_title">Ведомость чеков</h2>
         <div class="meta" id="sheet_meta"></div>
-        <div id="tabs">
-          <button data-mob="massif" aria-current="true">чеки</button>
-          <button data-mob="method">метод</button>
-          <button data-mob="econ">экономика</button>
-          <button data-mob="help">что это</button>
-        </div>
         <button id="sheet_close" aria-label="закрыть">✕</button></header>
       <div id="sortbar"></div>
       <div id="panel"></div>
@@ -546,7 +533,8 @@ function vedomost(){
     cols.slice(0,5).map(([k,t]) => `<button data-k="${k}" class="${S.sort===k?"on":""}">${t}</button>`).join("")
     + `<span class="spacer"></span><button id="rev">${S.desc?"убыв.":"возр."}</button>`;
   $("#panel").scrollTop = 0;
-  $("#panel").innerHTML = `<table><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table>`;
+  $("#panel").innerHTML = `<table><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table>` +
+    (S.mob ? refsHTML() : "");
   $("#total_txt").innerHTML =
     `Итого ${tot.n} · ${fmt(tot.ha,1)} га · ${fmt(tot.w/1e6,2)} млн м³`;
   $("#total").style.display = "flex";
@@ -560,13 +548,9 @@ function vedomost(){
 }
 
 /* ---------- Метод ---------- */
-function method(){
-  $("#sheet_title").textContent = "Метод";
-  $("#sheet_meta").textContent = "как получено";
-  $("#sortbar").style.display = "none";
-  $("#total").style.display = "none";
+function methodBody(){
   const c = DATA.content;
-  $("#panel").innerHTML = `<div class="doc">
+  return `
     <h3>Откуда массив</h3>
     <p>в заявке — предварительная оценка массива; в продукте массив переоцифрован по
     признаку риса, пруды и лиманы исключены, границы уточнены</p>
@@ -601,22 +585,25 @@ function method(){
     случайных перестановок свойств чеков (медиана ${DATA.placebo.median} %,
     95-й процентиль ${DATA.placebo.p95} %). Значит, выигрыш не от подбора по чекам:
     четыре пятых его — недоиспользованный лимит, который хозяйство не выбирает само.</p>
-    <p class="src">${c.disclaimer.value}</p>
-  </div>`;
+    <p class="src">${c.disclaimer.value}</p>`;
+}
+function method(){
+  $("#sheet_title").textContent = "Метод";
+  $("#sheet_meta").textContent = "как получено";
+  $("#sortbar").style.display = "none";
+  $("#total").style.display = "none";
+  $("#panel").scrollTop = 0;
+  $("#panel").innerHTML = `<div class="doc">${methodBody()}</div>`;
 }
 
 /* ---------- Экономика ---------- */
-function econ(){
-  $("#sheet_title").textContent = "Экономика";
-  $("#sheet_meta").textContent = "база сравнения — практика вывода чеков из севооборота";
-  $("#sortbar").style.display = "none";
-  $("#total").style.display = "none";
+function econBody(){
   const c = DATA.content;
   const L = DATA.modes.limits.find(l => Math.round(l.limit*100) === S.limit);
   const rows = DATA.grid_curve.map(r =>
     `<tr><td>${r.limit} %</td><td>${r.deficit} %</td><td style="text-align:right">${fmt(r.gain,2)}</td>
      <td style="text-align:right">${fmt(r.per_ha)}</td></tr>`).join("");
-  $("#panel").innerHTML = `<div class="doc">
+  return `
     <h3>Что даёт система при лимите ${100 - S.limit} %</h3>
     <div class="kv">
       <span>сбор при выводе чеков (база), т</span><span>${fmt(DATA.modes_now.yield_prac_t,0)}</span>
@@ -631,8 +618,15 @@ function econ(){
     <table><thead><tr><th>лимит</th><th>дефицит</th><th>%</th><th>₽/га</th></tr></thead>
       <tbody>${rows}</tbody></table>
     <p class="src">₽/га — от фактического урожая на каждом уровне лимита
-    (для −15 %: ${DATA.content.effect_rub_ha.source}). Ниже 70 % модель не проверялась.</p>
-  </div>`;
+    (для −15 %: ${DATA.content.effect_rub_ha.source}).</p>`;
+}
+function econ(){
+  $("#sheet_title").textContent = "Экономика";
+  $("#sheet_meta").textContent = "база сравнения — практика вывода чеков из севооборота";
+  $("#sortbar").style.display = "none";
+  $("#total").style.display = "none";
+  $("#panel").scrollTop = 0;
+  $("#panel").innerHTML = `<div class="doc">${econBody()}</div>`;
 }
 
 /* ---------- карточка чека (по нажатию на карту) ---------- */
@@ -670,13 +664,8 @@ function card(i){
 }
 
 /* ---------- справка: легенда и режимы ---------- */
-function help(){
-  $("#sheet_title").textContent = "Как читать";
-  $("#sheet_meta").textContent = "";
-  $("#sortbar").style.display = "none";
-  $("#total").style.display = "none";
-  $("#panel").scrollTop = 0;
-  $("#panel").innerHTML = `<div class="doc">
+function helpBody(){
+  return `
     <h3>Цвет чека</h3>
     ${legrowsHTML()}
     <p class="src">${legnote()}</p>
@@ -687,8 +676,19 @@ function help(){
     <p><b>Разница</b> — зелёный: чек получил больше, красный: меньше.</p>
     <h3>Откуда цифры</h3>
     <p class="src">${DATA.water_line}</p>
-    <p class="src">${DATA.content.disclaimer.value}</p>
-  </div>`;
+    <p class="src">${DATA.content.disclaimer.value}</p>`;
+}
+function help(){
+  $("#sheet_title").textContent = "Как читать";
+  $("#sheet_meta").textContent = "";
+  $("#sortbar").style.display = "none";
+  $("#total").style.display = "none";
+  $("#panel").scrollTop = 0;
+  $("#panel").innerHTML = `<div class="doc">${helpBody()}</div>`;
+}
+/* на телефоне вкладок нет: всё, что можно было открыть ими, лежит ниже ведомости */
+function refsHTML(){
+  return `<div class="doc refs">${helpBody()}${methodBody()}${econBody()}</div>`;
 }
 
 /* ---------- нажатие по карте ---------- */
@@ -703,17 +703,25 @@ function pip(lon, lat, poly){
   }
   return inside;
 }
+function distToSeg(x, y, ax, ay, bx, by){
+  const dx = bx - ax, dy = by - ay, l2 = dx*dx + dy*dy;
+  let t = l2 ? ((x - ax)*dx + (y - ay)*dy) / l2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(x - (ax + t*dx), y - (ay + t*dy));
+}
 function hitTest(x, y){
   const [lon, lat] = invXY(x, y);
   for (let i = 0; i < DATA.checks.length; i++)
     if (pip(lon, lat, DATA.checks[i].poly)) return i;
-  /* пальцем в мелкий чек не попасть: берём ближайший в пределах 45 px */
+  /* пальцем в мелкий чек не попасть: берём чек, до границы которого меньше 45 px */
   let best = -1, bd = 45;
   DATA.checks.forEach((c, i) => {
-    let sx = 0, sy = 0;
-    c.poly.forEach(([lo, la]) => { const [X, Y] = px(lo, la); sx += X; sy += Y; });
-    const n = c.poly.length, d = Math.hypot(sx/n - x, sy/n - y);
-    if (d < bd){ bd = d; best = i; }
+    const pts = c.poly.map(([lo, la]) => px(lo, la));
+    for (let k = 0; k < pts.length; k++){
+      const a = pts[k], b = pts[(k + 1) % pts.length];
+      const d = distToSeg(x, y, a[0], a[1], b[0], b[1]);
+      if (d < bd){ bd = d; best = i; }
+    }
   });
   return best;
 }
@@ -746,7 +754,6 @@ function layout(){
     $("#blink").textContent = "сравнить";
     $("#moblink").appendChild($("#blink"));
     $("#molimit").appendChild($("#limitrow"));
-    $("#mobound").appendChild($("#bound"));
     $("#mocounters").appendChild($("#counters"));
   } else {
     $("#modes .lbl").after($("#switch"));
@@ -754,7 +761,6 @@ function layout(){
     $("#modefoot").prepend($("#blink"));
     $("#modehint").after($("#counters"));
     $("#counters").after($("#limitrow"));
-    $("#limitrow").after($("#bound"));
     openSheet(false);
   }
   fit();
@@ -772,7 +778,6 @@ function setMode(m){
 function setLimit(v){
   S.limit = Math.max(70, Math.min(100, +v));
   $("#limval").textContent = "−" + (100 - S.limit) + " %";
-  $("#bound").style.display = S.limit <= 70 ? "block" : "none";
   counters(); draw();
   if (S.card != null) card(S.card);
   else { if (S.tab==="massif") vedomost(); if (S.tab==="econ") econ(); }
@@ -782,8 +787,6 @@ function setTab(t){
   S.card = null;
   document.querySelectorAll("#nav button").forEach(b =>
     b.setAttribute("aria-current", String(b.dataset.tab === t)));
-  document.querySelectorAll("#tabs button").forEach(b =>
-    b.setAttribute("aria-current", String(b.dataset.mob === t)));
   if (t==="massif") vedomost(); else if (t==="method") method(); else econ();
 }
 
@@ -818,15 +821,6 @@ function init(){
     window.print();
   };
   $("#sheet_close").onclick = () => openSheet(false);
-  document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
-    if (b.dataset.mob === "help"){
-      help();
-      document.querySelectorAll("#tabs button").forEach(x =>
-        x.setAttribute("aria-current", String(x === b)));
-      S.card = null;
-    } else setTab(b.dataset.mob);
-    openSheet(true);
-  });
   $("#mobottom").onclick = () => {
     if (window.innerWidth > 820) return;
     if ($("#sheet").classList.contains("open")) openSheet(false);
