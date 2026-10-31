@@ -55,7 +55,7 @@ GDAL_ENV = dict(
 )
 
 # Район зафиксирован: Красноармейский, Краснодарский край, окрестности ст. Полтавской.
-POLTAVSKAYA = (45.3733, 38.1725)
+POLTAVSKAYA = (45.3664, 38.2111)   # центр станицы Полтавской
 SEARCH_BBOX = [37.900, 45.180, 38.480, 45.570]  # minx, miny, maxx, maxy — внутри границ района
 COARSE_M = 60.0
 AOI_HALF_LON = 0.0750  # ±5.87 км
@@ -438,9 +438,20 @@ def main() -> None:
         first, second = pair[:1], pair[1:2]
     f1 = max(first, key=lambda u: u["flood_green_pct"])
     f2 = max(second, key=lambda u: u["flood_green_pct"])
+    # две даты впрямую друг к другу — слабое доказательство: ливень держит поля
+    # мокрыми двое суток. Поэтому из второй половины берём дату не ближе 4 суток
+    # к первой, если её сигнал не меньше половины лучшего.
+    import datetime as _dt
+    far = [u for u in second
+           if (_dt.date.fromisoformat(u["date"]) - _dt.date.fromisoformat(f1["date"])).days >= 4
+           and u["flood_green_pct"] >= 0.5 * f2["flood_green_pct"]]
+    if far:
+        log(f"  вторая дата смещена: {f2['date']} -> {far[0]['date']} "
+            f"(разница {( _dt.date.fromisoformat(far[0]['date']) - _dt.date.fromisoformat(f1['date'])).days} сут)")
+        f2 = far[0]
     veg_best = max(veg_used, key=lambda u: u["ndvi_mean"])
     key_dates = {"flood1": f1["date"], "flood2": f2["date"], "veg": veg_best["date"],
-                 "dry": autumn[-1][0] if autumn else None}
+                 "dry": max(d for d, _ in autumn) if autumn else None}
     log(f"ключевые даты: затопление {key_dates['flood1']} (осадки перед съёмкой "
         f"{rain_before(key_dates['flood1'], rain):.1f} мм) и {key_dates['flood2']} "
         f"({rain_before(key_dates['flood2'], rain):.1f} мм), полог {key_dates['veg']}, "
