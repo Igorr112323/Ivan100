@@ -104,8 +104,10 @@ def _f(v):
         return None
 
 
-def load_weather(year: int) -> list:
-    path = DATA / "weather" / f"era5_daily_{year}.csv"
+def load_weather(year: int, slot: str | None = None) -> list:
+    # у контрольного массива свой метеоряд: ячейка ERA5 крупная, но центр другой
+    name = f"era5_daily_{year}_{slot}.csv" if slot else f"era5_daily_{year}.csv"
+    path = DATA / "weather" / name
     if not path.exists():
         raise FileNotFoundError(f"нет файла метеоряда {path}")
     with path.open(encoding="utf-8") as fh:

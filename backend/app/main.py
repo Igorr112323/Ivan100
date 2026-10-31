@@ -57,7 +57,8 @@ def base_percolation(checks: list, meta: dict, mean_elev: float) -> tuple[float,
 @lru_cache(maxsize=8)
 def context(year: int):
     checks, meta = engine.load_checks()
-    rows = engine.load_weather(year)
+    slot = os.environ.get("AKVACHEK_SLOT", "")
+    rows = engine.load_weather(year, slot or None)
     mean_elev = sum(c.elev_m for c in checks) / max(len(checks), 1)
     lat = float((meta.get("aoi") or {}).get("lat", 45.50))
     season = engine.build_season(rows, lat=lat, elev=mean_elev)

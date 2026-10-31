@@ -128,12 +128,17 @@ jobs:
           [ -f data/checks.geojson ] && cp data/checks.geojson "data/checks_$SLOT.geojson"
           [ -f data/checks_series.json ] && cp data/checks_series.json "data/checks_series_$SLOT.json"
           [ -f data/aoi.json ] && cp data/aoi.json "data/aoi_$SLOT.json"
+          # метеоряд своего массива: иначе контрольный массив считается по чужой погоде
+          for y in 2020 2024 2025; do
+            [ -f "data/weather/era5_daily_$y.csv" ] && \
+              cp "data/weather/era5_daily_$y.csv" "data/weather/era5_daily_${y}_$SLOT.csv"
+          done
           for f in checks find_rice imagery verify diag weather; do
             [ -f "data/_log/$f.txt" ] && cp "data/_log/$f.txt" "data/_log/${f}_$SLOT.txt"
           done
           # основной массив возвращаем как был: контрольный прогон его не меняет
           git checkout -- data/checks.geojson data/checks_series.json data/aoi.json \
-            data/rice_proof.json data/sentinel data/verify 2>/dev/null
+            data/rice_proof.json data/sentinel data/verify data/weather 2>/dev/null
           echo "восстановлен основной массив, журналы контрольного — в data/_log/*_$SLOT.txt"
 
       - name: Фиксация данных
