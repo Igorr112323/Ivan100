@@ -311,7 +311,7 @@ def main() -> None:
         num = ndi.uniform_filter(wet.astype("float32"), size=FLOOD_SMOOTH_PX, mode="nearest")
         den = ndi.uniform_filter(valid_d.astype("float32"), size=FLOOD_SMOOTH_PX, mode="nearest")
         flood_frac_img[d] = num / np.maximum(den, 1e-6)
-        flood_seen_img[d] = den / float(FLOOD_SMOOTH_PX * FLOOD_SMOOTH_PX)
+        flood_seen_img[d] = den  # uniform_filter возвращает среднее, то есть уже долю
         flooded_any |= wet
         log(f"  {d}: затопление {wet.mean() * 100:5.2f} % полигона | NDWI > 0 у "
             f"{(ndwi_d > 0.0)[valid_d].mean() * 100:5.2f} % | NDVI средний "
