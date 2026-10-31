@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import time
 from pathlib import Path
 
@@ -394,7 +395,7 @@ def main() -> None:
     coverage = cov_sum / float(ww * wh)
     score = np.where(coverage >= 0.95, rice_sum * px_ha, -1.0)
 
-    best = None
+    cands = []
     log("")
     log("=== лучшие окна ===")
     shown = 0
@@ -411,12 +412,40 @@ def main() -> None:
         if shown <= 10:
             log(f"  {clat:.4f} с.ш. {clon:.4f} в.д. | рис {score[cy, cx]:7.0f} га | "
                 f"покрытие {coverage[cy, cx] * 100:5.1f} % | тайлов {len(tiles)}: {tiles}")
-        if best is None or (len(tiles) < len(best["tiles"]) and score[cy, cx] >= 0.9 * best["rice_ha"]):
-            best = {"lat": round(clat, 5), "lon": round(clon, 5),
-                    "rice_ha": round(float(score[cy, cx]), 1),
-                    "coverage": round(float(coverage[cy, cx]), 4), "tiles": tiles}
-    if best is None:
+        cands.append({"lat": round(clat, 5), "lon": round(clon, 5),
+                      "rice_ha": round(float(score[cy, cx]), 1),
+                      "coverage": round(float(coverage[cy, cx]), 4), "tiles": tiles})
+    if not cands:
         raise SystemExit("ни одно окно не набрало годного покрытия")
+
+    # Тест устойчивости: тот же конвейер на трёх неперекрывающихся массивах района.
+    # Окно №1 — основной массив, №2 и №3 — контрольные. Порог разноса 13 км при
+    # стороне окна 11,7 км: иначе массивы перекроются и это будет один массив трижды.
+    pick = int(os.environ.get("AOI_PICK", "0"))
+    sep_km = 13.0
+    picks: list[dict] = []
+    for c in cands:
+        far = True
+        for q in picks:
+            dy = (c["lat"] - q["lat"]) * 110.574
+            dx = (c["lon"] - q["lon"]) * 111.32 * math.cos(math.radians(c["lat"]))
+            if (dx * dx + dy * dy) ** 0.5 < sep_km:
+                far = False
+                break
+        if far:
+            picks.append(c)
+        if len(picks) > pick:
+            break
+    log("")
+    log(f"=== неперекрывающиеся массивы (разнос не менее {sep_km:.0f} км) ===")
+    for i, q in enumerate(picks):
+        log(f"  окно №{i + 1}: {q['lat']} с.ш. {q['lon']} в.д. | рис {q['rice_ha']:.0f} га | "
+            f"тайлы {q['tiles']}")
+    if pick >= len(picks):
+        raise SystemExit(f"в районе нашлось только {len(picks)} неперекрывающихся массивов, "
+                         f"запрошен окно №{pick + 1}")
+    best = picks[pick]
+    log(f"  взято окно №{pick + 1}")
 
     clat, clon = best["lat"], best["lon"]
     bbox = [round(clon - AOI_HALF_LON, 5), round(clat - AOI_HALF_LAT, 5),
@@ -486,7 +515,12 @@ def main() -> None:
                               "flood_green_pct": u["flood_green_pct"], "ndvi_mean": u["ndvi_mean"]}
                   for u in used},
     }
+    aoi["pick"] = pick
+    aoi["pick_note"] = (f"окно №{pick + 1} из {len(picks)} неперекрывающихся "
+                        f"(разнос не менее {sep_km:.0f} км)")
     write_json(DATA / "aoi.json", aoi)
+    if pick > 0:  # контрольный массив: основной не трогаем
+        write_json(DATA / f"aoi_{chr(ord('a') + pick)}.json", aoi)
     (ROOT / "web" / "public" / "data").mkdir(parents=True, exist_ok=True)
     write_json(ROOT / "web" / "public" / "data" / "aoi.json", aoi)
     log(f"записан полигон: {bbox}")

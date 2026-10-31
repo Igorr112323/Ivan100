@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -24,8 +25,10 @@ if str(ROOT) not in sys.path:  # запуск и как скрипт, и как 
     sys.path.insert(0, str(ROOT))
 
 from backend.app import engine, main as api
-OUT = ROOT / "data" / "optimization" / "grid.json"
-WEB = ROOT / "web" / "public" / "data" / "grid.json"
+SLOT = os.environ.get("AKVACHEK_SLOT", "")
+SUF = f"_{SLOT}" if SLOT else ""
+OUT = ROOT / "data" / "optimization" / f"grid{SUF}.json"
+WEB = ROOT / "web" / "public" / "data" / f"grid{SUF}.json"
 
 KY = 1.1
 

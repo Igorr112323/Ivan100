@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -15,14 +16,16 @@ if str(ROOT) not in sys.path:
 
 from backend.app import engine, main as api  # noqa: E402
 
-OUT = ROOT / "data" / "optimization" / "montecarlo_sweep.json"
+SLOT = os.environ.get("AKVACHEK_SLOT", "")
+SUF = f"_{SLOT}" if SLOT else ""
+OUT = ROOT / "data" / "optimization" / f"montecarlo_sweep{SUF}.json"
 DEFICIT, KY, RUNS = 0.15, 1.1, 40
 
 
 def main(sigmas: list[float]) -> None:
     years = api.years_available()
     checks, _meta, season, perc_base, _rows = api.context(years[-1])
-    base_path = ROOT / "data" / "optimization" / "montecarlo.json"
+    base_path = ROOT / "data" / "optimization" / f"montecarlo{SUF}.json"
     out = json.loads(base_path.read_text(encoding="utf-8")) if base_path.exists() else {
         "deficit": DEFICIT, "ky": KY, "max_cut": engine.MAX_CUT,
         "base": "практика вывода чеков из севооборота", "sigmas": []}
@@ -38,7 +41,7 @@ def main(sigmas: list[float]) -> None:
     out["runs_sweep"] = RUNS
     text = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
     OUT.write_text(text, encoding="utf-8")
-    (ROOT / "web" / "public" / "data" / "montecarlo.json").write_text(text, encoding="utf-8")
+    (ROOT / "web" / "public" / "data" / f"montecarlo{SUF}.json").write_text(text, encoding="utf-8")
     print(f"записано {OUT.relative_to(ROOT)}")
 
 

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -21,8 +22,10 @@ if str(ROOT) not in sys.path:
 
 from backend.app import engine, main as api  # noqa: E402
 
-OUT = ROOT / "data" / "optimization" / "montecarlo.json"
-WEB = ROOT / "web" / "public" / "data" / "montecarlo.json"
+SLOT = os.environ.get("AKVACHEK_SLOT", "")
+SUF = f"_{SLOT}" if SLOT else ""
+OUT = ROOT / "data" / "optimization" / f"montecarlo{SUF}.json"
+WEB = ROOT / "web" / "public" / "data" / f"montecarlo{SUF}.json"
 DEFICIT = 0.15
 KY = 1.1
 RUNS = 60

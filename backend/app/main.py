@@ -1,6 +1,8 @@
 """API «АКВАЧЕК». Отдаёт реальные данные и считает оптимизацию водоподачи на лету."""
 from __future__ import annotations
 
+import os
+
 import json
 import threading
 import time
@@ -137,7 +139,7 @@ def api_meta():
 
 @app.get("/api/checks")
 def api_checks():
-    path = DATA / "checks.geojson"
+    path = DATA / os.environ.get("AKVACHEK_CHECKS", "checks.geojson")
     if not path.exists():
         raise HTTPException(503, "контуры чеков ещё не построены")
     return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
@@ -145,7 +147,9 @@ def api_checks():
 
 @app.get("/api/series")
 def api_series(limit: int = Query(24, ge=1, le=400)):
-    path = DATA / "checks_series.json"
+    slot = os.environ.get("AKVACHEK_SLOT", "")
+    name = f"checks_series_{slot}.json" if slot else "checks_series.json"
+    path = DATA / name
     if not path.exists():
         raise HTTPException(503, "спутниковый ряд ещё не построен")
     payload = json.loads(path.read_text(encoding="utf-8"))

@@ -46,8 +46,17 @@ jobs:
       - name: Зависимости пайплайна
         run: pip install -r pipeline/requirements.txt
 
+      - name: Какой массив считать
+        run: |
+          PICK=$(grep -m1 '^PICK=' data/_trigger/rice.txt 2>/dev/null | cut -d= -f2 | tr -d ' \r' || true)
+          case "$PICK" in ''|*[!0-9]*) PICK=0 ;; esac
+          echo "PICK=$PICK" >> "$GITHUB_ENV"
+          echo "считаем массив №$((PICK + 1))"
+
       - name: Поиск рисового массива
         if: ${{ env.STAGE == 'all' || env.STAGE == 'scan' }}
+        env:
+          AOI_PICK: ${{ env.PICK }}
         working-directory: pipeline
         run: |
           mkdir -p ../data/_log
@@ -106,6 +115,23 @@ jobs:
           python verify_checks.py > ../data/_log/verify.txt 2>&1
           echo "КОД ВЫХОДА: $?" >> ../data/_log/verify.txt
           tail -40 ../data/_log/verify.txt
+
+      - name: Контрольный массив — копия под своим номером
+        if: ${{ env.PICK != '0' }}
+        run: |
+          set +e
+          SLOT=$(printf "\$(printf '%03o' $((97 + PICK)))")
+          echo "слот: $SLOT"
+          [ -f data/checks.geojson ] && cp data/checks.geojson "data/checks_$SLOT.geojson"
+          [ -f data/checks_series.json ] && cp data/checks_series.json "data/checks_series_$SLOT.json"
+          [ -f data/aoi.json ] && cp data/aoi.json "data/aoi_$SLOT.json"
+          for f in checks find_rice imagery verify; do
+            [ -f "data/_log/$f.txt" ] && cp "data/_log/$f.txt" "data/_log/${f}_$SLOT.txt"
+          done
+          # основной массив возвращаем как был: контрольный прогон его не меняет
+          git checkout -- data/checks.geojson data/checks_series.json data/aoi.json \
+            data/rice_proof.json data/sentinel data/verify data/_log 2>/dev/null
+          echo "восстановлено: $(git status --short data | wc -l) файлов основного массива"
 
       - name: Фиксация данных
         if: always()
