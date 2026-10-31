@@ -4,26 +4,26 @@
   {
    "id": 33,
    "image": "check_33.png",
-   "area_ha": 14.52,
-   "elev_m": 0.13,
-   "rice_frac": 0.974,
+   "area_ha": 18.13,
+   "elev_m": 0.74,
+   "rice_frac": 0.889,
    "dry_frac": 1.0,
    "canal_m": 0.0,
-   "solidity": 0.93,
-   "rect_fill": 0.896,
-   "neighbors": 3
+   "solidity": 0.832,
+   "rect_fill": 0.616,
+   "neighbors": 5
   },
   {
    "id": 47,
    "image": "check_47.png",
-   "area_ha": 16.23,
-   "elev_m": -0.42,
-   "rice_frac": 0.994,
+   "area_ha": 16.3,
+   "elev_m": -3.17,
+   "rice_frac": 0.972,
    "dry_frac": 1.0,
    "canal_m": 0.0,
-   "solidity": 0.95,
-   "rect_fill": 0.808,
-   "neighbors": 7
+   "solidity": 0.922,
+   "rect_fill": 0.826,
+   "neighbors": 3
   },
   {
    "id": 19,
@@ -52,13 +52,13 @@
   {
    "id": 48,
    "image": "check_48.png",
-   "area_ha": 16.43,
-   "elev_m": -0.74,
-   "rice_frac": 0.917,
+   "area_ha": 29.05,
+   "elev_m": -0.27,
+   "rice_frac": 0.964,
    "dry_frac": 1.0,
    "canal_m": 0.0,
-   "solidity": 0.928,
-   "rect_fill": 0.826,
+   "solidity": 0.938,
+   "rect_fill": 0.898,
    "neighbors": 3
   }
  ],
