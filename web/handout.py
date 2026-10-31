@@ -3,15 +3,15 @@ from __future__ import annotations
 
 import base64
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from site_url import SITE  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 TMP = Path("/tmp")
-
-SITE = ("https://cdn.jsdelivr.net/gh/Igorr112323/Ivan100@8a3a41bbbab7139e9ba791cf5009546337557c50"
-        "/dist/akvachek.html")
-
 
 def data_uri(path: Path, mime: str) -> str:
     return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
@@ -66,6 +66,8 @@ body{{font-family:"Golos Text","Segoe UI",system-ui,sans-serif;color:#1B1F24;bac
 .qr{{width:46mm;text-align:center}}
 .qr img{{width:46mm;height:46mm;display:block;border:1px solid #000}}
 .qr .cap{{font-size:9pt;margin-top:2mm;line-height:1.2}}
+.qr .url{{font-size:9pt;margin-top:2mm;line-height:1.25;word-break:break-all;
+  text-align:left;border-top:1px solid #999;padding-top:2mm}}
 .src{{margin-top:5mm;border-top:1px solid #000;padding-top:2mm;font-size:9pt;color:#333}}
 </style></head><body>
 <div class="head">
@@ -101,6 +103,7 @@ body{{font-family:"Golos Text","Segoe UI",system-ui,sans-serif;color:#1B1F24;bac
   <div class="qr">
     <img src="{data_uri(DIST / 'qr.png', 'image/png')}" alt="QR">
     <div class="cap">откройте и подвигайте ползунок</div>
+    <div class="url mono">{SITE}</div>
   </div>
 </div>
 <div class="src mono">источники: Sentinel-2 L2A (границы чеков и вода) · ERA5 (погода) ·

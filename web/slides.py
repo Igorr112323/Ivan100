@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 import base64
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from site_url import SITE  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
@@ -39,7 +43,7 @@ SLIDES = [
       </div>
       <p class="base">база сравнения: практика вывода чеков из севооборота · расчёт модели</p>
     """),
-    ("Границы и следующий шаг", """
+    ("Границы и следующий шаг", f"""
       <div class="cols">
         <div class="lim">
           <div class="h">Границы</div>
@@ -57,6 +61,11 @@ SLIDES = [
             <li>съёмка отметок</li>
             <li>один сезон: вода на входе, урожай на выходе</li>
           </ul>
+        </div>
+        <div class="qrbox">
+          <img src="{uri(DIST / 'qr.png', 'image/png')}" alt="QR">
+          <div class="qrcap">откройте и подвигайте ползунок</div>
+          <div class="qrurl mono">{SITE}</div>
         </div>
       </div>
     """),
@@ -106,6 +115,11 @@ p.dim{{color:#444}}
 .cols li{{padding-left:28px;text-indent:-28px;margin-bottom:12px}}
 .cols li::before{{content:"— ";color:#B4341F}}
 .next .h{{color:#B4341F}}
+.qrbox{{width:300px;margin-left:auto}}
+.qrbox img{{width:220px;height:220px;display:block;border:1px solid #1B1F24}}
+.qrbox .qrcap{{font-size:20px;margin-top:12px;line-height:1.2}}
+.qrbox .qrurl{{font-size:16px;margin-top:10px;line-height:1.25;word-break:break-all;color:#6B6558}}
+.mono{{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}}
 </style></head><body>{body}</body></html>"""
     OUT.write_text(html, encoding="utf-8")
     print("slides.html:", OUT.stat().st_size // 1024, "КБ")
