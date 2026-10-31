@@ -492,10 +492,6 @@ def main():
     print(f"записано {OUT} ({time.time() - t0:.1f} с)")
 
 
-if __name__ == "__main__":
-    main()
-
-
 # --------------------- ТЕСТ 1.1: плацебо при жёстких лимитах
 
 def placebo_at(deficit: float, runs: int = 100, seed: int = 20251031):
@@ -688,3 +684,7 @@ def test_money():
                 })
     return {"test": "пересчёт ₽/га от фактического урожая практики на каждом лимите",
             "rows": rows}
+
+
+if __name__ == "__main__":
+    main()

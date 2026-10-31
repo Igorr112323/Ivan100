@@ -90,13 +90,25 @@ def main():
                 "per_ha": round(r["economics"]["per_ha_rub"]),
             })
 
+    # практика хозяйства на каждом лимите: из grid.json, модель не пересчитывается
+    grid_rows = {round(r["limit"] * 100): r for r in grid["rows"]}
+    for L in modes["limits"]:
+        g = grid_rows.get(round(L["limit"] * 100))
+        if not g:
+            L["yield_prac_t"] = None
+            continue
+        L["yield_prac_t"] = round(g["yield_tons"]["fallowing"], 1)
+        L["water_prac_m3"] = round(g["water_m3"]["fallowing"])
+        L["prac_out"] = list(g["fallowed"]["fallowing"])
+
     rgb_b64 = ""
     jpg = DATA / "sentinel" / "array_rgb.jpg"
     if jpg.exists():
         rgb_b64 = "data:image/jpeg;base64," + base64.b64encode(jpg.read_bytes()).decode()
 
     head, src, placebo = headline_variant()
-    now = modes["limits"][[round(l["limit"] * 100) for l in modes["limits"]].index(85)]
+    LIMIT_DEFAULT = 85
+    now = modes["limits"][[round(l["limit"] * 100) for l in modes["limits"]].index(LIMIT_DEFAULT)]
 
     payload = {
         "checks": checks,
@@ -110,6 +122,7 @@ def main():
         "headsrc": src,
         "modes_now": now,
         "underuse_m3": UNDERUSE_M3,
+        "limit_default": LIMIT_DEFAULT,
         "water_line": WATER_LINE,
         "elev_note": ELEV_NOTE,
         "proof_ok": proof["counts"]["rice"],

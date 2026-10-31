@@ -127,9 +127,13 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
   #legend{left:8px;top:8px;width:170px;padding:4px 6px}
   #legend .row{height:20px;font-size:12px}
   #modes{left:0;right:0;bottom:0;width:auto;border-left:0;border-right:0;border-bottom:0;
-    padding:8px 12px 10px;max-height:56dvh;overflow:auto}
-  #counters{grid-template-columns:repeat(3,1fr);gap:6px}
-  #counters .cell .v{font-size:19px}
+    padding:8px 12px 52px;max-height:100%;overflow:auto}
+  #switch button{padding:6px 4px;font-size:13px}
+  #counters{grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px}
+  #counters .cell .v{font-size:16px}
+  #counters .cell .k,#counters .cell .s{line-height:1.2}
+  #limitrow{margin-top:8px;gap:8px}
+  #limitrow .lv{font-size:24px;min-width:76px}
   #sheet{position:fixed;left:0;right:0;bottom:0;width:auto;min-width:0;
     border-left:0;border-top:1px solid var(--line);max-height:70dvh;
     transform:translateY(calc(100% - 46px));transition:transform .18s ease;
@@ -205,8 +209,8 @@ tbody tr.sel{background:rgba(180,52,31,.10)}
       <div id="modes">
         <div class="lbl">Распределение воды</div>
         <div id="switch">
-          <button data-mode="uni" aria-pressed="true">Поровну</button>
-          <button data-mode="opt" aria-pressed="false">По фазам</button>
+          <button data-mode="uni" aria-pressed="false">Поровну</button>
+          <button data-mode="opt" aria-pressed="true">По фазам</button>
           <button data-mode="diff" aria-pressed="false">Разница</button>
         </div>
         <div id="modefoot">
@@ -261,7 +265,7 @@ const fmt = (v, d=0) => (v==null||isNaN(v)) ? "—" :
   Number(v).toLocaleString("ru-RU",{minimumFractionDigits:d,maximumFractionDigits:d});
 
 /* ---------- состояние ---------- */
-const S = { tab:"massif", mode:"uni", limit:70, sort:"id", desc:false, sel:null, blink:null };
+const S = { tab:"massif", mode:"opt", limit:85, sort:"id", desc:false, sel:null, blink:null };
 
 /* ---------- проекция ---------- */
 const POLY = DATA.checks.map(c => c.poly);
@@ -385,13 +389,16 @@ function scaleText(){
 function counters(){
   const L = DATA.modes.limits.find(l => Math.round(l.limit*100) === S.limit);
   if (!L) return;
+  const dT = L.yield_prac_t!=null ? L.yield_opt_t - L.yield_prac_t : null;
+  const dP = L.yield_prac_t!=null ? (L.yield_opt_t/L.yield_prac_t-1)*100 : null;
   const cells = [
-    {k:"Объём воды на массив", v:fmt(L.water_opt_m3/1e6,2)+" млн м³",
-     s:"одинаков во всех режимах · водный баланс"},
-    {k:"Сбор риса, поровну", v:fmt(L.yield_uni_t,0)+" т",
-     s:"уравнительный срез · расчёт модели"},
-    {k:"Сбор риса, по фазам", v:fmt(L.yield_opt_t,0)+" т",
-     s:"распределение модели · расчёт модели"},
+    {k:"Подача воды на массив", v:fmt(L.water_opt_m3/1e6,2)+" млн м³",
+     s:"одинакова во всех трёх режимах · водный баланс"},
+    {k:"Сбор при выводе чеков", v:fmt(L.yield_prac_t,0)+" т",
+     s:"база: практика хозяйства · расчёт модели"},
+    {k:"Сбор при распределении", v:fmt(L.yield_opt_t,0)+" т",
+     s:dT==null ? "модель · расчёт модели"
+       : `${dT>=0?"+":"−"}${fmt(Math.abs(dT),1)} т к практике (${dP>=0?"+":"−"}${fmt(Math.abs(dP),2)} %)`},
   ];
   $("#counters").innerHTML = cells.map(c =>
     `<div class="cell"><div class="v">${c.v}</div><div class="k">${c.k}</div>
@@ -517,8 +524,9 @@ function econ(){
   $("#panel").innerHTML = `<div class="doc">
     <h3>Что даёт система при лимите ${Math.abs(c.limit_base.value)} %</h3>
     <div class="kv">
-      <span>сбор при уравнительном срезе, т</span><span>${fmt(DATA.modes_now.yield_uni_t,0)}</span>
+      <span>сбор при выводе чеков (база), т</span><span>${fmt(DATA.modes_now.yield_prac_t,0)}</span>
       <span>сбор при распределении модели, т</span><span>${fmt(DATA.modes_now.yield_opt_t,0)}</span>
+      <span>разница к базе, т</span><span>${fmt(DATA.modes_now.yield_opt_t-DATA.modes_now.yield_prac_t,1)}</span>
       <span>подача, млн м³</span><span>${fmt(DATA.modes_now.water_opt_m3/1e6,2)}</span>
       <span>недоиспользовано лимита, тыс. м³</span><span>${fmt(DATA.underuse_m3/1000,0)}</span>
       <span>источник</span><span>расчёт модели</span>
@@ -585,7 +593,7 @@ function init(){
   $("#sheethead").onclick = () => { if (window.innerWidth <= 820) $("#sheet").classList.toggle("open"); };
   const q = new URLSearchParams(location.search);
   const lim = q.get("limit");
-  $("#limit").value = lim ? Math.max(70, Math.min(100, +lim)) : 70;
+  $("#limit").value = lim ? Math.max(70, Math.min(100, +lim)) : (DATA.limit_default || 85);
   setLimit($("#limit").value);
   setTab("massif");
   fit();
