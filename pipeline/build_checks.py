@@ -195,7 +195,21 @@ def _read_dem_one(url: str, width: int, height: int, transform) -> np.ndarray:
             return out
 
 
-def segment(field: np.ndarray, min_distance: int = 10, smooth: float = 2.5) -> np.ndarray:
+def bank_mask(ndvi: np.ndarray, valid: np.ndarray, win: int = 13, drop: float = 0.10) -> np.ndarray:
+    """Валы между чеками: локальные минимумы NDVI на пике вегетации.
+
+    На снимке вал — это узкая полоса без риса: он суше и светлее, поэтому NDVI
+    на нём ниже, чем в чеке, но он не пустой, поэтому просто порогом по NDVI
+    его не взять. Ищем локальный минимум NDVI, заметно уступающий окрестности.
+    """
+    v = np.where(valid & np.isfinite(ndvi), ndvi, np.nan)
+    mx = ndi.maximum_filter(v, size=win)
+    mn = ndi.minimum_filter(v, size=3)
+    return np.isfinite(v) & (v == mn) & ((mx - v) > drop)
+
+
+def segment(field: np.ndarray, min_distance: int = 10, smooth: float = 2.5,
+            barriers: np.ndarray | None = None) -> np.ndarray:
     """Разделение слипшихся чеков водоразделом по карте расстояний.
 
     Карта расстояний сглаживается гауссианой: без этого на рваной кромке маски
@@ -208,6 +222,9 @@ def segment(field: np.ndarray, min_distance: int = 10, smooth: float = 2.5) -> n
     px_per_ha = 100
     clean = ndi.binary_opening(clean, structure=np.ones((2, 2)))
     dist = ndi.distance_transform_edt(clean)
+    if barriers is not None:
+        # Вал работает как перегородка: обнуляем карту расстояний там, где он идёт
+        dist = np.where(barriers, 0.0, dist)
     dist_s = ndi.gaussian_filter(dist, smooth)
     coords = peak_local_max(dist_s, min_distance=min_distance, labels=clean, exclude_border=False)
     if len(coords) == 0:
@@ -343,12 +360,14 @@ def main() -> None:
     field = ndi.binary_closing(field, structure=np.ones((5, 5)))
     log(f"зелёные поля на пике: {field.mean() * 100:.2f} % полигона "
         f"({field.sum() * 100.0 / 10_000:.0f} га)")
+    banks = bank_mask(ndvi_peak_img, valid_peak)
+    log(f"валы (локальные минимумы NDVI): {banks.mean() * 100:.2f} % полигона")
     canals = canal_mask(flooded_any)
     rice_field = field & ~canals
     log(f"каналы (полосы до {CANAL_WIDTH_MAX_M:.0f} м): {canals.mean() * 100:.2f} % полигона")
     dist_to_canal = ndi.distance_transform_edt(~canals).astype("float32") * 10.0  # метры
 
-    labels = segment(rice_field)
+    labels = segment(rice_field, barriers=ndi.binary_dilation(banks, np.ones((3, 3))))
     n_labels = int(labels.max())
     log(f"водораздел выделил {n_labels} контуров")
     _size_histogram(labels)
