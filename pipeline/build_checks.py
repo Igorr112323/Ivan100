@@ -34,7 +34,11 @@ from common import AOI, DATA, SENTINEL, WEB, grid_shape, log, write_json
 
 GEOD = Geod(ellps="WGS84")
 # Жёсткие фильтры рисового чека (по ТЗ проекта)
-MIN_HA, MAX_HA = 10.0, 60.0      # площадь чека: всё вне диапазона — в брак
+MIN_HA, MAX_HA = 12.0, 60.0      # площадь чека: всё вне диапазона — в брак
+                                 # нижний порог поднят с 10 га: медиана 13,7 га прижата
+                                 # к порогу, и всё, что мельче 12 га, — обрывки полей
+BANK_IOU_MIN = 0.80              # доля границы контура, совпавшая с валом
+RECT_DEV_MAX = 0.15              # отклонение площади от описанного прямоугольника
 RICE_FRAC_MIN = 0.50             # доля пикселей чека с NDVI > 0.55 на пике вегетации
 DRY_FRAC_MIN = 0.50              # доля пикселей чека с NDWI <= 0 в сентябре (чек сброшен)
 # Главный признак риса: вода под зелёным пологом. Открытым зеркалом (NDWI > 0) затопленный
@@ -361,7 +365,9 @@ def main() -> None:
     log(f"зелёные поля на пике: {field.mean() * 100:.2f} % полигона "
         f"({field.sum() * 100.0 / 10_000:.0f} га)")
     banks = bank_mask(ndvi_peak_img, valid_peak)
-    log(f"валы (локальные минимумы NDVI): {banks.mean() * 100:.2f} % полигона")
+    banks_d = ndi.binary_dilation(banks, np.ones((3, 3)))
+    log(f"валы (локальные минимумы NDVI): {banks.mean() * 100:.2f} % полигона, "
+        f"с допуском 10 м — {banks_d.mean() * 100:.2f} %")
     canals = canal_mask(flooded_any)
     rice_field = field & ~canals
     log(f"каналы (полосы до {CANAL_WIDTH_MAX_M:.0f} м): {canals.mean() * 100:.2f} % полигона")
@@ -384,7 +390,8 @@ def main() -> None:
         }
 
     rejects: dict[str, int] = {}
-    stats = {"solidity": [], "rect": [], "rice": [], "dry": [], "canal_m": [], "flood": []}
+    stats = {"solidity": [], "rect": [], "rice": [], "dry": [], "canal_m": [], "flood": [],
+             "bank": []}
 
     def reject(reason: str) -> None:
         rejects[reason] = rejects.get(reason, 0) + 1
@@ -473,6 +480,22 @@ def main() -> None:
             reject("форма не четырёхугольная")
             continue
 
+        # граница контура должна идти по валу: вал на снимке виден как локальный
+        # минимум NDVI, и если контур нарисован по полю, он совпадёт с валом
+        edge = geom_mask & ~ndi.binary_erosion(geom_mask, structure=np.ones((3, 3)))
+        bank_iou = float(banks_d[edge].mean()) if edge.any() else 0.0
+        stats["bank"].append(bank_iou)
+        if bank_iou < BANK_IOU_MIN:
+            reject(f"граница не идёт по валу (совпало {bank_iou:.0%} из {BANK_IOU_MIN:.0%})")
+            continue
+
+        # чек — прямоугольник: если площадь заметно меньше описанного
+        # прямоугольника, это либо обрывок поля, либо склейка двух чеков
+        rect_dev = 1.0 - rect_fill
+        if rect_dev > RECT_DEV_MAX:
+            reject(f"площадь отличается от прямоугольника на {rect_dev:.0%}")
+            continue
+
         canal_m = float(dist_to_canal[geom_mask].min())
         if canal_m > CANAL_REACH_PX * 10.0:
             reject(f"нет канала ближе {CANAL_REACH_PX * 10} м")
@@ -501,6 +524,7 @@ def main() -> None:
             "canal_m": round(canal_m, 1),
             "solidity": round(solidity, 3),
             "rect_fill": round(rect_fill, 3),
+            "bank_iou": round(bank_iou, 3),
             "ndvi_peak": round(float(np.nanmean(ndvi[geom_mask])), 4) if np.isfinite(ndvi[geom_mask]).any() else None,
             "ndwi_peak": round(float(np.nanmean(ndwi[geom_mask])), 4) if np.isfinite(ndwi[geom_mask]).any() else None,
             "centroid": [round(clon, 6), round(clat, 6)],
@@ -520,6 +544,7 @@ def main() -> None:
     for key, label in (("solidity", "заполнение выпуклой оболочки"), ("rect", "заполнение прямоугольника"),
                        ("rice", "доля пикселей с пологом риса"), ("flood", "доля пикселей под водой летом"),
                        ("dry", "доля пикселей без воды в сентябре"),
+                       ("bank", "совпадение границы с валами"),
                        ("canal_m", "расстояние до канала, м")):
         if stats[key]:
             arr = np.array(stats[key])
